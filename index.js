@@ -1,0 +1,57 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const morgan = require('morgan');
+require('dotenv').config();
+
+// Проверка наличия необходимых переменных окружения
+const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI', 'GMAIL_USER', 'GMAIL_PASS'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Ошибка: Отсутствуют следующие переменные окружения:');
+  console.error(missingEnvVars.join(', '));
+  process.exit(1); // Завершаем процесс с ошибкой
+}
+
+const app = express();
+
+// Middleware
+app.use(cors()); // Разрешает запросы с любого источника
+app.use(morgan('dev')); // Логирование запросов
+app.use(express.json());
+app.use('/uploads', express.static('uploads')); // Папка для хранения загруженных файлов
+
+const PORT = process.env.PORT || 5000;
+
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('MongoDB connected'))
+.catch((err) => console.log('MongoDB connection error:', err));
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+const postsRoutes = require('./routes/posts');
+app.use('/api/posts', postsRoutes);
+
+const commentsRoutes = require('./routes/comments');
+app.use('/api/comments', commentsRoutes);
+
+const usersRoutes = require('./routes/users');
+app.use('/api/users', usersRoutes);
+
+const errorHandler = require('./middleware/error');
+
+// Обработка ошибок должна быть после всех маршрутов
+app.use(errorHandler);
+
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+}); 
