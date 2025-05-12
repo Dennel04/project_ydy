@@ -48,9 +48,27 @@ const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  connectTimeoutMS: 30000, // увеличенный таймаут
+  socketTimeoutMS: 30000    // увеличенный таймаут сокета
 })
 .then(() => console.log('MongoDB connected'))
-.catch((err) => console.log('MongoDB connection error:', err));
+.catch((err) => {
+  console.error('MongoDB connection error:');
+  console.error('Error name:', err.name);
+  console.error('Error message:', err.message);
+  
+  if (err.code) {
+    console.error('Error code:', err.code);
+  }
+  
+  if (err.name === 'MongoNetworkError') {
+    console.error('Возможно, проблема с сетевым подключением или правилами брандмауэра');
+  } else if (err.name === 'MongoServerSelectionError') {
+    console.error('Не удалось подключиться к серверу MongoDB. Проверьте URI и доступность сервера');
+  } else if (err.message && err.message.includes('Authentication failed')) {
+    console.error('Ошибка аутентификации. Проверьте имя пользователя и пароль');
+  }
+});
 
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
