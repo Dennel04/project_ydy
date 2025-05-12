@@ -1,10 +1,21 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Определяем директорию для загрузки в зависимости от окружения
+const uploadDir = process.env.NODE_ENV === 'production' 
+  ? process.env.UPLOAD_DIR || '/tmp/uploads'
+  : 'uploads';
+
+// Создаем директорию, если она не существует
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Настройка хранилища для изображений
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Папка для загрузки файлов
+    cb(null, uploadDir); // Папка для загрузки файлов
   },
   filename: (req, file, cb) => {
     // Генерируем уникальное имя файла с добавлением времени
