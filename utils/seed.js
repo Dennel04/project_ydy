@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Tag = require('../models/Tag');
 require('dotenv').config();
 
 // Подключение к базе данных
@@ -40,24 +41,6 @@ const users = [
   }
 ];
 
-// Тестовые посты для каждого пользователя
-const createPostsForUser = (userId, username) => [
-  {
-    name: `Первый пост ${username}`,
-    content: `Это мой первый пост на платформе! Здесь я буду делиться мыслями и идеями о технологиях, разработке и всем, что меня интересует. Следите за обновлениями!`,
-    author: userId,
-    tags: ['первый пост', 'приветствие'],
-    isPublished: true
-  },
-  {
-    name: `Интересные находки на GitHub`,
-    content: `В этом посте я хочу поделиться несколькими интересными проектами, которые недавно нашел на GitHub. Они могут быть полезны для разработчиков и дизайнеров. Список проектов:\n\n1. Awesome React - коллекция ресурсов по React\n2. VS Code Extensions - лучшие расширения для VS Code\n3. UI Libraries - подборка библиотек для создания современных интерфейсов`,
-    author: userId,
-    tags: ['github', 'ресурсы', 'разработка'],
-    isPublished: true
-  }
-];
-
 // Функция для создания тестовых данных
 const seedDatabase = async () => {
   try {
@@ -66,6 +49,40 @@ const seedDatabase = async () => {
     await Post.deleteMany({});
     
     console.log('Старые данные удалены');
+    
+    // Получаем все доступные теги
+    const allTags = await Tag.find({});
+    
+    if (allTags.length === 0) {
+      console.error('Сначала запустите скрипт заполнения тегов: npm run seed-tags');
+      process.exit(1);
+    }
+    
+    console.log(`Найдено ${allTags.length} тегов для использования`);
+    
+    // Функция для случайного выбора тегов
+    const getRandomTags = (count) => {
+      const shuffled = [...allTags].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, count).map(tag => tag._id);
+    };
+    
+    // Тестовые посты для каждого пользователя с использованием ID тегов
+    const createPostsForUser = (userId, username) => [
+      {
+        name: `Первый пост ${username}`,
+        content: `Это мой первый пост на платформе! Здесь я буду делиться мыслями и идеями о технологиях, разработке и всем, что меня интересует. Следите за обновлениями!`,
+        author: userId,
+        tags: getRandomTags(2),
+        isPublished: true
+      },
+      {
+        name: `Интересные находки на GitHub`,
+        content: `В этом посте я хочу поделиться несколькими интересными проектами, которые недавно нашел на GitHub. Они могут быть полезны для разработчиков и дизайнеров. Список проектов:\n\n1. Awesome React - коллекция ресурсов по React\n2. VS Code Extensions - лучшие расширения для VS Code\n3. UI Libraries - подборка библиотек для создания современных интерфейсов`,
+        author: userId,
+        tags: getRandomTags(3),
+        isPublished: true
+      }
+    ];
     
     // Создаем пользователей
     const createdUsers = [];
@@ -94,6 +111,11 @@ const seedDatabase = async () => {
         savedUser.posts.push(savedPost._id);
         
         console.log(`Создан пост: ${postData.name}`);
+        
+        // Увеличиваем счетчик использования тегов
+        for (const tagId of postData.tags) {
+          await Tag.findByIdAndUpdate(tagId, { $inc: { count: 1 } });
+        }
       }
       
       // Обновляем пользователя с новыми постами

@@ -82,6 +82,9 @@ app.use('/api/comments', commentsRoutes);
 const usersRoutes = require('./routes/users');
 app.use('/api/users', usersRoutes);
 
+const tagsRoutes = require('./routes/tags');
+app.use('/api/tags', tagsRoutes);
+
 const errorHandler = require('./middleware/error');
 
 // Обработка ошибок должна быть после всех маршрутов

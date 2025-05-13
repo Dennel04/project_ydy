@@ -3,6 +3,7 @@ const router = express.Router();
 const Post = require('../models/Post');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const Tag = require('../models/Tag');
 const upload = require('../middleware/upload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
@@ -22,24 +23,38 @@ router.post('/', auth, async (req, res) => {
     }
     
     // Проверяем теги
+    let tagIds = [];
     if (tags && Array.isArray(tags)) {
-      // Проверяем, что каждый тег - строка и имеет разумную длину
-      const invalidTags = tags.filter(tag => typeof tag !== 'string' || tag.trim().length < 2 || tag.trim().length > 20);
-      if (invalidTags.length > 0) {
-        return res.status(400).json({ message: 'Теги должны быть строками длиной от 2 до 20 символов' });
+      // Получаем ID тегов и проверяем их существование
+      for (const tagId of tags) {
+        const tag = await Tag.findById(tagId);
+        if (!tag) {
+          return res.status(400).json({ message: `Тег с ID ${tagId} не найден` });
+        }
+        tagIds.push(tag._id);
+        
+        // Увеличиваем счетчик использования тега
+        tag.count += 1;
+        await tag.save();
       }
     }
     
     const post = new Post({
       name,
       content,
-      tags: tags || [],
+      tags: tagIds,
       isPublished: isPublished !== undefined ? isPublished : true,
       author: req.user.userId
     });
     
     await post.save();
-    res.status(201).json(post);
+    
+    // Отправляем пост с заполненными тегами
+    const populatedPost = await Post.findById(post._id)
+      .populate('tags', 'name slug')
+      .populate('author', 'username');
+    
+    res.status(201).json(populatedPost);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при создании поста' });
@@ -49,7 +64,10 @@ router.post('/', auth, async (req, res) => {
 // Получить все посты (доступно всем)
 router.get('/', async (req, res) => {
   try {
-    const posts = await Post.find().populate('author', 'username').sort({ createdAt: -1 });
+    const posts = await Post.find()
+      .populate('author', 'username')
+      .populate('tags', 'name slug')
+      .sort({ createdAt: -1 });
     res.json(posts);
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении постов' });
@@ -71,27 +89,33 @@ router.get('/user/:userId', async (req, res) => {
 
 // Получить один пост по id
 router.get('/:id', async (req, res) => {
-    try {
-      const post = await Post.findById(req.params.id).populate('author', 'username');
-      if (!post) {
-        return res.status(404).json({ message: 'Пост не найден' });
-      }
-      
-      // Увеличиваем счётчик просмотров
-      post.views += 1;
-      await post.save();
-      
-      res.json(post);
-    } catch (e) {
-      res.status(500).json({ message: 'Ошибка при получении поста' });
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate('author', 'username')
+      .populate('tags', 'name slug');
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Пост не найден' });
     }
-  });
+    
+    // Увеличиваем счётчик просмотров
+    post.views += 1;
+    await post.save();
+    
+    res.json(post);
+  } catch (e) {
+    res.status(500).json({ message: 'Ошибка при получении поста' });
+  }
+});
 
 // Редактировать пост (только автор)
 router.put('/:id', auth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { name, content, tags, isPublished } = req.body;
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).session(session);
     
     if (!post) {
       return res.status(404).json({ message: 'Пост не найден' });
@@ -105,12 +129,63 @@ router.put('/:id', auth, async (req, res) => {
     // Обновляем поля
     post.name = name || post.name;
     post.content = content || post.content;
-    post.tags = tags || post.tags;
     post.isPublished = isPublished !== undefined ? isPublished : post.isPublished;
     
-    await post.save();
-    res.json(post);
+    // Обрабатываем теги, если они предоставлены
+    if (tags && Array.isArray(tags)) {
+      const oldTagIds = post.tags.map(tag => tag.toString());
+      let newTagIds = [];
+      
+      // Получаем ID тегов и проверяем их существование
+      for (const tagId of tags) {
+        const tag = await Tag.findById(tagId).session(session);
+        if (!tag) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ message: `Тег с ID ${tagId} не найден` });
+        }
+        newTagIds.push(tag._id.toString());
+        
+        // Если это новый тег для поста, увеличиваем счетчик
+        if (!oldTagIds.includes(tag._id.toString())) {
+          tag.count += 1;
+          await tag.save({ session });
+        }
+      }
+      
+      // Уменьшаем счетчики для удаленных тегов
+      for (const oldTagId of oldTagIds) {
+        if (!newTagIds.includes(oldTagId)) {
+          const tag = await Tag.findById(oldTagId).session(session);
+          if (tag) {
+            tag.count = Math.max(0, tag.count - 1); // Не уходим в минус
+            await tag.save({ session });
+          }
+        }
+      }
+      
+      // Обновляем теги в посте
+      post.tags = tags;
+    }
+    
+    await post.save({ session });
+    
+    // Фиксируем транзакцию
+    await session.commitTransaction();
+    session.endSession();
+    
+    // Возвращаем обновленный пост с заполненными данными
+    const updatedPost = await Post.findById(post._id)
+      .populate('tags', 'name slug')
+      .populate('author', 'username');
+    
+    res.json(updatedPost);
   } catch (e) {
+    // Отменяем транзакцию в случае ошибки
+    await session.abortTransaction();
+    session.endSession();
+    
+    console.error(e);
     res.status(500).json({ message: 'Ошибка при редактировании поста' });
   }
 });
@@ -392,6 +467,29 @@ router.post('/upload-image/:id', auth, upload.single('image'), async (req, res, 
   } catch (e) {
     console.error(e);
     next(e); // Передаем ошибку глобальному обработчику
+  }
+});
+
+// Получить посты по тегу
+router.get('/bytag/:tagId', async (req, res) => {
+  try {
+    const tag = await Tag.findById(req.params.tagId);
+    if (!tag) {
+      return res.status(404).json({ message: 'Тег не найден' });
+    }
+    
+    const posts = await Post.find({ 
+      tags: req.params.tagId,
+      isPublished: true 
+    })
+    .populate('author', 'username')
+    .populate('tags', 'name slug')
+    .sort({ createdAt: -1 });
+    
+    res.json(posts);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Ошибка при получении постов по тегу' });
   }
 });
 

@@ -7,8 +7,9 @@ const PostSchema = new mongoose.Schema({
   likes: { type: Number, default: 0 },
   views: { type: Number, default: 0 },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  tags: [{ type: String }],
+  tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   isPublished: { type: Boolean, default: true },
+  image: { type: String },
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } });
 
 // Добавляем индексы для оптимизации запросов
