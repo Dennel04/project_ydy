@@ -4,7 +4,7 @@ const Post = require('../models/Post');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Tag = require('../models/Tag');
-const upload = require('../middleware/upload');
+const upload = require('../middleware/cloudinaryUpload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
 
@@ -453,8 +453,8 @@ router.post('/upload-image/:id', auth, upload.single('image'), async (req, res, 
       return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
     }
     
-    // URL для доступа к изображению
-    const imageUrl = `${req.protocol}://${req.get('host')}${req.file.path.replace('\\', '/')}`;
+    // Cloudinary возвращает полный URL в req.file.path
+    const imageUrl = req.file.path;
     
     // Сохраняем URL изображения в посте
     post.image = imageUrl;

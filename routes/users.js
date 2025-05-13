@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
-const upload = require('../middleware/upload');
+const upload = require('../middleware/cloudinaryUpload');
 
 // Получить профиль текущего пользователя
 router.get('/profile', auth, async (req, res) => {
@@ -109,8 +109,8 @@ router.post('/upload-avatar', auth, upload.single('avatar'), async (req, res, ne
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
-    // URL для доступа к изображению
-    const imageUrl = `${req.protocol}://${req.get('host')}${req.file.path.replace('\\', '/')}`;
+    // Cloudinary возвращает полный URL в req.file.path
+    const imageUrl = req.file.path;
     
     // Сохраняем URL аватара в профиле пользователя
     user.image = imageUrl;
