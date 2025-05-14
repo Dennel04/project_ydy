@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const transporter = require('../utils/mailer');
+const passport = require('passport');
+
+// Подключаем конфигурацию passport
+require('../config/passport');
 
 // Регистрация
 router.post('/register', async (req, res) => {
@@ -113,6 +117,67 @@ router.get('/verify-email', async (req, res) => {
     res.json({ message: 'Почта успешно подтверждена! Теперь вы можете войти.' });
   } catch (e) {
     res.status(400).json({ message: 'Некорректная или просроченная ссылка' });
+  }
+});
+
+// Google OAuth маршруты
+// Начало аутентификации через Google
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email']
+}));
+
+// Callback URL для Google OAuth
+router.get('/google/callback', 
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    try {
+      // Создаем JWT токен
+      const token = jwt.sign(
+        { userId: req.user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      // Перенаправляем на фронтенд с токеном
+      // В production, перенаправляйте на ваш домен с помощью переменной окружения
+      const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${redirectUrl}/auth/google-callback?token=${token}`);
+    } catch (error) {
+      console.error('Error in Google callback:', error);
+      res.redirect('/login?error=auth_failed');
+    }
+  }
+);
+
+// Проверка аутентификации через Google
+router.post('/google/verify-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: 'Токен не предоставлен' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+    
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        login: user.login,
+        username: user.username,
+        description: user.description,
+        image: user.image
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying Google token:', error);
+    res.status(401).json({ message: 'Недействительный токен' });
   }
 });
 

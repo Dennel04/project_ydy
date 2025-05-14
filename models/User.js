@@ -11,7 +11,8 @@ const UserSchema = new mongoose.Schema({
   favourite: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   email: { type: String, required: true, unique: true },
   isEmailVerified: { type: Boolean, default: false },
-  liked_comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }]
+  liked_comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
+  googleId: { type: String, sparse: true }
 }, { timestamps: true });
 
 // Индекс для поиска по логину (уже есть из-за unique: true)
@@ -25,5 +26,8 @@ UserSchema.index({ username: 1 });
 
 // Индекс для проверки подтверждения email
 UserSchema.index({ isEmailVerified: 1 });
+
+// Добавляем индекс для поиска по googleId
+UserSchema.index({ googleId: 1 });
 
 module.exports = mongoose.model('User', UserSchema); 

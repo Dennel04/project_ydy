@@ -4,10 +4,18 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const passport = require('passport');
 require('dotenv').config();
 
 // Проверка наличия необходимых переменных окружения
-const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI', 'GMAIL_USER', 'GMAIL_PASS'];
+const requiredEnvVars = [
+  'JWT_SECRET', 
+  'MONGO_URI', 
+  'GMAIL_USER', 
+  'GMAIL_PASS',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET'
+];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -29,6 +37,9 @@ app.use(cors(corsOptions));
 // Middleware
 app.use(morgan('dev')); // Логирование запросов
 app.use(express.json());
+
+// Инициализируем Passport
+app.use(passport.initialize());
 
 // Настраиваем папку для загруженных файлов
 // В production используем папку из переменной окружения или '/tmp/uploads'

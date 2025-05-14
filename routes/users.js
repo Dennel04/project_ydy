@@ -4,6 +4,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const upload = require('../middleware/cloudinaryUpload');
+const cloudinary = require('../utils/cloudinary');
 
 // Получить профиль текущего пользователя
 router.get('/profile', auth, async (req, res) => {
@@ -109,6 +110,19 @@ router.post('/upload-avatar', auth, upload.single('avatar'), async (req, res, ne
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
+    // Если у пользователя уже есть аватар, удаляем его из Cloudinary
+    if (user.image) {
+      try {
+        // Извлекаем public_id из URL
+        const publicId = user.image.split('/').pop().split('.')[0];
+        // Удаляем старое изображение
+        await cloudinary.uploader.destroy(`blog-uploads/${publicId}`);
+      } catch (error) {
+        console.log('Ошибка при удалении старого аватара:', error);
+        // Продолжаем работу даже при ошибке удаления
+      }
+    }
+    
     // Cloudinary возвращает полный URL в req.file.path
     const imageUrl = req.file.path;
     
@@ -123,6 +137,45 @@ router.post('/upload-avatar', auth, upload.single('avatar'), async (req, res, ne
   } catch (e) {
     console.error(e);
     next(e); // Передаем ошибку глобальному обработчику
+  }
+});
+
+// Удалить аватар пользователя
+router.delete('/remove-avatar', auth, async (req, res) => {
+  try {
+    // Получаем пользователя из базы
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+    
+    // Проверяем, есть ли аватар для удаления
+    if (!user.image) {
+      return res.status(400).json({ message: 'У пользователя нет аватара' });
+    }
+    
+    // Извлекаем public_id из URL
+    const publicId = user.image.split('/').pop().split('.')[0];
+    
+    try {
+      // Удаляем изображение из Cloudinary
+      await cloudinary.uploader.destroy(`blog-uploads/${publicId}`);
+    } catch (error) {
+      console.log('Ошибка при удалении аватара из Cloudinary:', error);
+      // Продолжаем работу даже при ошибке удаления
+    }
+    
+    // Сбрасываем аватар пользователя на null
+    user.image = null;
+    await user.save();
+    
+    res.json({ 
+      message: 'Аватар успешно удален'
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Ошибка при удалении аватара' });
   }
 });
 

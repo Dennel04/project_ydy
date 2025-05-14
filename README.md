@@ -13,6 +13,7 @@ REST API для блог-платформы на Node.js, Express и MongoDB.
   - [Посты](#посты)
   - [Комментарии](#комментарии)
   - [Теги](#теги)
+- [Хранилище изображений](#хранилище-изображений)
 
 ## Установка
 
@@ -42,6 +43,11 @@ JWT_SECRET=your_jwt_secret_key
 # Данные для отправки email
 GMAIL_USER=your_email@gmail.com
 GMAIL_PASS=your_app_password
+
+# Настройки Cloudinary для хранения изображений
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ## Запуск
@@ -77,6 +83,7 @@ npm start
 | PUT | `/api/users/profile` | Обновление профиля |
 | PUT | `/api/users/change-password` | Смена пароля |
 | POST | `/api/users/upload-avatar` | Загрузка аватара |
+| DELETE | `/api/users/remove-avatar` | Удаление аватара |
 
 ### Посты
 
@@ -117,4 +124,26 @@ npm start
 | GET | `/api/tags/slug/:slug` | Получение тега по URL-имени (slug) |
 | POST | `/api/tags` | Создание нового тега (только для администратора) |
 | PUT | `/api/tags/:id` | Обновление тега (только для администратора) |
-| DELETE | `/api/tags/:id` | Удаление тега (только для администратора) | 
+| DELETE | `/api/tags/:id` | Удаление тега (только для администратора) |
+
+## Хранилище изображений
+
+API использует Cloudinary для хранения загружаемых изображений (аватары пользователей и изображения к постам).
+
+### Функциональность
+
+- Автоматическая оптимизация изображений
+- Ограничение по размеру (до 5MB)
+- Поддержка форматов: jpg, jpeg, png, gif
+- Автоматическая конвертация всех изображений в jpg
+- Автоматическое удаление старых изображений при обновлении аватара
+- Хранение изображений в отдельной папке "blog-uploads"
+
+### Настройка
+
+Для работы с Cloudinary необходимо создать аккаунт на [cloudinary.com](https://cloudinary.com) и получить:
+- Cloud Name
+- API Key
+- API Secret
+
+Эти значения должны быть указаны в файле `.env` как описано в разделе [Конфигурация](#конфигурация). 
