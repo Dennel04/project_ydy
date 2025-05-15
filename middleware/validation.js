@@ -54,11 +54,10 @@ const validatePasswordChange = (req, res, next) => {
   // Проверка сложности пароля (пример простой проверки)
   const hasLetter = /[a-zA-Z]/.test(newPassword);
   const hasNumber = /\d/.test(newPassword);
-  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
   
-  if (!(hasLetter && hasNumber)) {
+  if (!hasNumber) {
     return res.status(400).json({ 
-      message: 'Пароль должен содержать как минимум одну букву и одну цифру' 
+      message: 'Пароль должен содержать минимум одну цифру' 
     });
   }
   

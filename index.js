@@ -34,7 +34,9 @@ const app = express();
 
 // Настройка CORS
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : '*'),
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.CORS_ORIGIN || false
+    : ['http://localhost:3000', 'http://localhost:5500', 'null', 'file://', 'http://127.0.0.1:5500'],
   credentials: true, // Разрешаем отправку куков и аутентификационных заголовков
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

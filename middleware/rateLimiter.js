@@ -12,7 +12,7 @@ const apiLimiter = rateLimit({
 // Более строгий лимитер для запросов аутентификации
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 час
-  max: 10, // макс. 10 запросов на IP в течение windowMs
+  max: 50, // макс. 50 запросов на IP в течение windowMs (увеличено для тестирования)
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Слишком много попыток авторизации, повторите попытку позже' }

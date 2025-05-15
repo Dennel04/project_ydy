@@ -29,10 +29,10 @@ router.post('/register', async (req, res) => {
     }
     
     // Проверка сложности пароля
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    const passwordRegex = /^(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({ 
-        message: 'Пароль должен содержать минимум 8 символов, включая заглавные и строчные буквы, цифры и специальные символы' 
+        message: 'Пароль должен содержать минимум 8 символов и хотя бы одну цифру' 
       });
     }
     
@@ -180,8 +180,8 @@ router.post('/login', async (req, res) => {
     // Устанавливаем токен в HttpOnly cookie
     setTokenCookie(res, token, '7d');
     
-    // Отправляем данные пользователя
-    res.json({
+    // Базовый ответ с данными пользователя
+    const response = {
       user: {
         id: user._id,
         login: user.login,
@@ -189,7 +189,15 @@ router.post('/login', async (req, res) => {
         description: user.description,
         image: user.image
       }
-    });
+    };
+    
+    // Возвращаем токен только в режиме разработки или для тестирования
+    if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
+      response.token = token;
+    }
+    
+    // Отправляем данные пользователя
+    res.json(response);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -319,8 +327,11 @@ router.post('/refresh-token', async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    res.json({
-      token: newToken,
+    // Устанавливаем токен в HttpOnly cookie
+    setTokenCookie(res, newToken, '7d');
+    
+    // Базовый ответ с данными пользователя
+    const response = {
       user: {
         id: user._id,
         login: user.login,
@@ -328,7 +339,15 @@ router.post('/refresh-token', async (req, res) => {
         description: user.description,
         image: user.image
       }
-    });
+    };
+    
+    // Возвращаем токен только в режиме разработки или для тестирования
+    if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
+      response.token = newToken;
+    }
+    
+    // Отправляем данные пользователя
+    res.json(response);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при обновлении токена' });
