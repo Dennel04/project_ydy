@@ -35,8 +35,16 @@ const app = express();
 // Настройка CORS
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CORS_ORIGIN || false
-    : ['http://localhost:3000', 'http://localhost:5500', 'null', 'file://', 'http://127.0.0.1:5500'],
+    ? [
+        process.env.CORS_ORIGIN || 'https://blog-api-wpbz.onrender.com',
+        'null', // Разрешаем запросы из локальных файлов
+        'file://',
+        'http://localhost:3000',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500',
+        'https://file.io' // Разрешаем запросы из файлового хостинга
+      ]
+    : '*', // В режиме разработки разрешаем все запросы
   credentials: true, // Разрешаем отправку куков и аутентификационных заголовков
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -145,6 +153,15 @@ app.get('/', (req, res) => {
 app.get('/api/csrf-token', (req, res) => {
   const csrfToken = getNewCsrfToken(req, res);
   res.json({ csrfToken });
+});
+
+// Маршрут для проверки CORS
+app.get('/api/cors-test', (req, res) => {
+  res.json({ 
+    message: 'CORS настроен правильно!',
+    origin: req.headers.origin || 'Неизвестный источник',
+    time: new Date().toISOString()
+  });
 });
 
 // Обработка ошибок 404
