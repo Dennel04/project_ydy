@@ -5,6 +5,11 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const { apiLimiter } = require('./middleware/rateLimiter');
+const securityHeaders = require('./middleware/securityHeaders');
+const { csrfProtection, csrfToken, getNewCsrfToken } = require('./middleware/csrfProtection');
 require('dotenv').config();
 
 // Проверка наличия необходимых переменных окружения
@@ -14,7 +19,8 @@ const requiredEnvVars = [
   'GMAIL_USER', 
   'GMAIL_PASS',
   'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET'
+  'GOOGLE_CLIENT_SECRET',
+  'CSRF_SECRET'
 ];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
@@ -28,15 +34,43 @@ const app = express();
 
 // Настройка CORS
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*', // В production укажите конкретные домены
+  origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : '*'),
   credentials: true, // Разрешаем отправку куков и аутентификационных заголовков
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 };
 app.use(cors(corsOptions));
 
+// Безопасные заголовки
+app.use(securityHeaders);
+
 // Middleware
 app.use(morgan('dev')); // Логирование запросов
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // Ограничиваем размер JSON
+app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Ограничиваем размер данных формы
+
+// Cookie parser для работы с cookies
+app.use(cookieParser());
+
+// Настройка сессий для работы с CSRF
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'super-secret-session-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));
+
+// CSRF защита
+app.use(csrfToken);
+app.use(csrfProtection);
+
+// Лимитирование запросов
+app.use('/api/', apiLimiter);
 
 // Инициализируем Passport
 app.use(passport.initialize());
@@ -103,6 +137,25 @@ app.use(errorHandler);
 
 app.get('/', (req, res) => {
   res.send('API is running');
+});
+
+// Создаем специальный маршрут для CSRF токена
+app.get('/api/csrf-token', (req, res) => {
+  const csrfToken = getNewCsrfToken(req, res);
+  res.json({ csrfToken });
+});
+
+// Обработка ошибок 404
+app.use((req, res, next) => {
+  res.status(404).json({ message: 'Не найдено' });
+});
+
+// Глобальный обработчик ошибок
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Внутренняя ошибка сервера';
+  res.status(statusCode).json({ message });
 });
 
 app.listen(PORT, () => {

@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Tag = require('../models/Tag');
 const upload = require('../middleware/cloudinaryUpload');
+const postImageUpload = require('../middleware/postImageUpload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
 
@@ -434,7 +435,7 @@ router.get('/search', async (req, res) => {
 });
 
 // Загрузить изображение для поста
-router.post('/upload-image/:id', auth, upload.single('image'), async (req, res, next) => {
+router.post('/upload-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
   try {
     // Проверяем, загружен ли файл
     if (!req.file) {
@@ -451,6 +452,21 @@ router.post('/upload-image/:id', auth, upload.single('image'), async (req, res, 
     // Проверяем, что текущий пользователь - автор поста
     if (post.author.toString() !== req.user.userId) {
       return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+    }
+    
+    // Если у поста уже есть изображение, удаляем его из Cloudinary
+    if (post.image) {
+      try {
+        // Извлекаем public_id из URL
+        const publicId = post.image.split('/').pop().split('.')[0];
+        // Определяем папку на основе URL
+        const folder = post.image.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
+        // Удаляем старое изображение
+        await cloudinary.uploader.destroy(`${folder}/${publicId}`);
+      } catch (error) {
+        console.log('Ошибка при удалении старого изображения поста:', error);
+        // Продолжаем работу даже при ошибке удаления
+      }
     }
     
     // Cloudinary возвращает полный URL в req.file.path

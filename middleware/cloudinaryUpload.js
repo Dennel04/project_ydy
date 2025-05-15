@@ -7,10 +7,14 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'blog-uploads', // Название папки в Cloudinary
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
-    transformation: [{ width: 1000, crop: "limit" }], // Базовая оптимизация
-    format: 'jpg', // Преобразование всех изображений в jpg
-    quality: 'auto:good' // Автоматическая оптимизация качества
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [
+      { width: 1000, crop: "scale" }, // Масштабирование до ширины 1000px с сохранением пропорций
+      { quality: "auto" },           // Автоматическая оптимизация качества
+      { fetch_format: "auto" }       // Автоматический выбор формата (webp для поддерживаемых браузеров)
+    ],
+    // Убираем жесткое указание формата и качества, т.к. это теперь в трансформации
+    resource_type: 'auto' // Автоматическое определение типа ресурса
   }
 });
 
@@ -28,7 +32,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 10 * 1024 * 1024 // Увеличиваем до 10MB, т.к. изображения будут оптимизированы
   }
 });
 

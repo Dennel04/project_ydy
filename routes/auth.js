@@ -5,26 +5,66 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const transporter = require('../utils/mailer');
 const passport = require('passport');
+const { authLimiter } = require('../middleware/rateLimiter');
+const { setTokenCookie, clearTokenCookie } = require('../middleware/secureTokens');
 
 // Подключаем конфигурацию passport
 require('../config/passport');
+
+// Применяем rate limiter ко всем маршрутам аутентификации
+router.use(authLimiter);
 
 // Регистрация
 router.post('/register', async (req, res) => {
   try {
     const { login, password, username, description, email } = req.body;
-    if (!login || !password || !username || !email) {
-      return res.status(400).json({ message: 'Заполните все обязательные поля' });
+    
+    // Улучшенная валидация
+    if (!login || login.length < 4) {
+      return res.status(400).json({ message: 'Логин должен содержать минимум 4 символа' });
     }
+    
+    if (!password || password.length < 8) {
+      return res.status(400).json({ message: 'Пароль должен содержать минимум 8 символов' });
+    }
+    
+    // Проверка сложности пароля
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ 
+        message: 'Пароль должен содержать минимум 8 символов, включая заглавные и строчные буквы, цифры и специальные символы' 
+      });
+    }
+    
+    if (!username) {
+      return res.status(400).json({ message: 'Имя пользователя обязательно' });
+    }
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email обязателен' });
+    }
+    
+    // Проверка формата email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Некорректный формат email' });
+    }
+    
     const candidateLogin = await User.findOne({ login });
     if (candidateLogin) {
       return res.status(400).json({ message: 'Пользователь с таким логином уже существует' });
     }
+    
     const candidateEmail = await User.findOne({ email });
     if (candidateEmail) {
       return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
     }
-    const hashPassword = await bcrypt.hash(password, 10);
+    
+    // Усиленное хеширование пароля
+    const salt = await bcrypt.genSalt(12); // увеличиваем сложность соли
+    const hashPassword = await bcrypt.hash(password, salt);
+    
+    // Создаем пользователя
     const user = new User({
       login,
       password: hashPassword,
@@ -34,13 +74,14 @@ router.post('/register', async (req, res) => {
     });
     await user.save();
 
+    // Отправляем подтверждение email
     const emailToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    const url = `http://localhost:5000/api/auth/verify-email?token=${emailToken}`;
+    const url = `${process.env.API_URL || 'http://localhost:5000'}/api/auth/verify-email?token=${emailToken}`;
 
     try {
       await transporter.sendMail({
@@ -59,6 +100,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ message: 'Проверьте почту для завершения регистрации' });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
@@ -67,27 +109,79 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { login, password } = req.body;
+    
     if (!login || !password) {
       return res.status(400).json({ message: 'Введите логин и пароль' });
     }
+    
+    // Находим пользователя
     const user = await User.findOne({ login });
     if (!user) {
       return res.status(400).json({ message: 'Пользователь не найден' });
     }
+    
     if (!user.isEmailVerified) {
       return res.status(400).json({ message: 'Подтвердите почту для входа' });
     }
+    
+    // Проверяем блокировку аккаунта
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      // Вычисляем оставшееся время блокировки в минутах
+      const remainingMinutes = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
+      return res.status(400).json({ 
+        message: `Аккаунт временно заблокирован. Повторите попытку через ${remainingMinutes} мин.`, 
+        lockUntil: user.lockUntil,
+        remainingMinutes
+      });
+    }
+    
+    // Проверяем пароль
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Неверный пароль' });
+      // Увеличиваем счетчик неудачных попыток
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      
+      // Блокируем аккаунт после 5 неудачных попыток
+      if (user.loginAttempts >= 5) {
+        const lockTime = 30 * 60 * 1000; // 30 минут в миллисекундах
+        user.lockUntil = Date.now() + lockTime;
+        
+        await user.save();
+        
+        return res.status(400).json({ 
+          message: 'Превышено количество попыток входа. Аккаунт заблокирован на 30 минут.', 
+          lockUntil: user.lockUntil,
+          remainingMinutes: 30
+        });
+      }
+      
+      await user.save();
+      
+      // Сообщаем пользователю, сколько попыток осталось
+      const attemptsLeft = 5 - user.loginAttempts;
+      return res.status(400).json({ 
+        message: `Неверный пароль. Осталось попыток: ${attemptsLeft}`,
+        attemptsLeft
+      });
     }
+    
+    // Успешный вход: сбрасываем счетчик попыток и время блокировки
+    user.loginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+    
+    // Создаем JWT токен
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+    
+    // Устанавливаем токен в HttpOnly cookie
+    setTokenCookie(res, token, '7d');
+    
+    // Отправляем данные пользователя
     res.json({
-      token,
       user: {
         id: user._id,
         login: user.login,
@@ -97,8 +191,16 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
+});
+
+// Выход
+router.post('/logout', (req, res) => {
+  // Удаляем cookie с токеном
+  clearTokenCookie(res);
+  res.json({ message: 'Успешный выход из системы' });
 });
 
 router.get('/verify-email', async (req, res) => {
@@ -138,10 +240,12 @@ router.get('/google/callback',
         { expiresIn: '7d' }
       );
 
-      // Перенаправляем на фронтенд с токеном
-      // В production, перенаправляйте на ваш домен с помощью переменной окружения
+      // Устанавливаем токен в HttpOnly cookie
+      setTokenCookie(res, token, '7d');
+      
+      // Перенаправляем на фронтенд
       const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${redirectUrl}/auth/google-callback?token=${token}`);
+      res.redirect(`${redirectUrl}/auth/google-callback`);
     } catch (error) {
       console.error('Error in Google callback:', error);
       res.redirect('/login?error=auth_failed');
