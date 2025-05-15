@@ -4,6 +4,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const formatResponse = require('../utils/formatResponse');
 
 // Создать комментарий (только авторизованный пользователь)
 router.post('/:postId', auth, async (req, res) => {
@@ -32,7 +33,7 @@ router.post('/:postId', auth, async (req, res) => {
     const populatedComment = await Comment.findById(savedComment._id)
       .populate('author', 'username');
     
-    res.status(201).json(populatedComment);
+    res.status(201).json(formatResponse(populatedComment));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при создании комментария' });
@@ -46,7 +47,7 @@ router.get('/post/:postId', async (req, res) => {
       .populate('author', 'username')
       .sort({ createdAt: -1 });
     
-    res.json(comments);
+    res.json(formatResponse(comments));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении комментариев' });
   }

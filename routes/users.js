@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const cloudinary = require('../utils/cloudinary');
 const { validateUserProfile, validatePasswordChange, validateEmailChange } = require('../middleware/validation');
 const { avatarUploader } = require('../middleware/imageProcessor');
+const formatResponse = require('../utils/formatResponse');
 
 // Получить профиль текущего пользователя
 router.get('/profile', auth, async (req, res) => {
@@ -14,7 +15,7 @@ router.get('/profile', auth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
-    res.json(user);
+    res.json(formatResponse(user));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении профиля' });
   }
@@ -30,7 +31,7 @@ router.get('/:id', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
-    res.json(user);
+    res.json(formatResponse(user));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении профиля' });
   }
@@ -60,7 +61,7 @@ router.put('/profile', auth, validateUserProfile, async (req, res) => {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
-    res.json(updatedUser);
+    res.json(formatResponse(updatedUser));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при обновлении профиля' });

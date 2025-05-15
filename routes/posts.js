@@ -8,6 +8,7 @@ const upload = require('../middleware/cloudinaryUpload');
 const postImageUpload = require('../middleware/postImageUpload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
+const formatResponse = require('../utils/formatResponse');
 
 // Создать пост (только авторизованный пользователь)
 router.post('/', auth, async (req, res) => {
@@ -55,7 +56,7 @@ router.post('/', auth, async (req, res) => {
       .populate('tags', 'name slug')
       .populate('author', 'username');
     
-    res.status(201).json(populatedPost);
+    res.status(201).json(formatResponse(populatedPost));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при создании поста' });
@@ -69,7 +70,7 @@ router.get('/', async (req, res) => {
       .populate('author', 'username')
       .populate('tags', 'name slug')
       .sort({ createdAt: -1 });
-    res.json(posts);
+    res.json(formatResponse(posts));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении постов' });
   }
@@ -82,7 +83,7 @@ router.get('/user/:userId', async (req, res) => {
       .populate('author', 'username')
       .sort({ createdAt: -1 });
     
-    res.json(posts);
+    res.json(formatResponse(posts));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении постов пользователя' });
   }
@@ -103,7 +104,7 @@ router.get('/:id', async (req, res) => {
     post.views += 1;
     await post.save();
     
-    res.json(post);
+    res.json(formatResponse(post));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении поста' });
   }
@@ -180,7 +181,7 @@ router.put('/:id', auth, async (req, res) => {
       .populate('tags', 'name slug')
       .populate('author', 'username');
     
-    res.json(updatedPost);
+    res.json(formatResponse(updatedPost));
   } catch (e) {
     // Отменяем транзакцию в случае ошибки
     await session.abortTransaction();
@@ -420,7 +421,7 @@ router.get('/search', async (req, res) => {
       .limit(parseInt(limit));
     
     res.json({
-      posts,
+      posts: formatResponse(posts),
       pagination: {
         total,
         page: parseInt(page),

@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const Tag = require('../models/Tag');
 const auth = require('../middleware/auth');
+const formatResponse = require('../utils/formatResponse');
 
 // Получить все теги
 router.get('/', async (req, res) => {
   try {
     const tags = await Tag.find().sort({ count: -1 });
-    res.json(tags);
+    res.json(formatResponse(tags));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при получении тегов' });
@@ -21,7 +22,7 @@ router.get('/:id', async (req, res) => {
     if (!tag) {
       return res.status(404).json({ message: 'Тег не найден' });
     }
-    res.json(tag);
+    res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при получении тега' });
@@ -35,7 +36,7 @@ router.get('/slug/:slug', async (req, res) => {
     if (!tag) {
       return res.status(404).json({ message: 'Тег не найден' });
     }
-    res.json(tag);
+    res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при получении тега' });
@@ -76,7 +77,7 @@ router.post('/', auth, async (req, res) => {
     });
     
     await tag.save();
-    res.status(201).json(tag);
+    res.status(201).json(formatResponse(tag));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при создании тега' });
@@ -123,7 +124,7 @@ router.put('/:id', auth, async (req, res) => {
     tag.description = description || tag.description;
     await tag.save();
     
-    res.json(tag);
+    res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при обновлении тега' });

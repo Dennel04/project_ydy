@@ -7,6 +7,7 @@ const transporter = require('../utils/mailer');
 const passport = require('passport');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { setTokenCookie, clearTokenCookie } = require('../middleware/secureTokens');
+const formatResponse = require('../utils/formatResponse');
 
 // Подключаем конфигурацию passport
 require('../config/passport');
@@ -181,15 +182,15 @@ router.post('/login', async (req, res) => {
     setTokenCookie(res, token, '7d');
     
     // Базовый ответ с данными пользователя
-    const response = {
-      user: {
-        id: user._id,
-        login: user.login,
-        username: user.username,
-        description: user.description,
-        image: user.image
-      }
-    };
+    const formattedUser = formatResponse({
+      id: user._id,
+      login: user.login,
+      username: user.username,
+      description: user.description,
+      image: user.image
+    });
+    
+    const response = { user: formattedUser };
     
     // Возвращаем токен только в режиме разработки или для тестирования
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
@@ -331,15 +332,15 @@ router.post('/refresh-token', async (req, res) => {
     setTokenCookie(res, newToken, '7d');
     
     // Базовый ответ с данными пользователя
-    const response = {
-      user: {
-        id: user._id,
-        login: user.login,
-        username: user.username,
-        description: user.description,
-        image: user.image
-      }
-    };
+    const formattedUser = formatResponse({
+      id: user._id,
+      login: user.login,
+      username: user.username,
+      description: user.description,
+      image: user.image
+    });
+    
+    const response = { user: formattedUser };
     
     // Возвращаем токен только в режиме разработки или для тестирования
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
@@ -350,7 +351,7 @@ router.post('/refresh-token', async (req, res) => {
     res.json(response);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при обновлении токена' });
+    res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
 

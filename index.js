@@ -10,6 +10,7 @@ const session = require('express-session');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const securityHeaders = require('./middleware/securityHeaders');
 const { csrfProtection, csrfToken, getNewCsrfToken } = require('./middleware/csrfProtection');
+const responseFormatter = require('./middleware/responseFormatter');
 require('dotenv').config();
 
 // Проверка наличия необходимых переменных окружения
@@ -81,6 +82,9 @@ app.use(csrfProtection);
 
 // Лимитирование запросов
 app.use('/api/', apiLimiter);
+
+// Форматирование ответов API - преобразование _id в id и форматирование дат
+app.use('/api/', responseFormatter);
 
 // Инициализируем Passport
 app.use(passport.initialize());
