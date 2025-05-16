@@ -41,8 +41,10 @@ function formatObject(obj) {
     return obj.map(item => formatObject(item));
   }
   
-  // Если это ObjectId, преобразуем в строку
-  if (obj._id && obj._id.toString) {
+  // Проверяем, является ли объект непосредственно ObjectId, а не документом с _id
+  if (obj._id && obj._id.toString && 
+      (Object.getPrototypeOf(obj).constructor.name === 'ObjectID' || 
+       Object.keys(obj).length === 1)) {
     return obj._id.toString();
   }
   
