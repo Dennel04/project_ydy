@@ -49,12 +49,23 @@ const corsOptions = {
     }
     
     // Список разрешенных источников
-    const allowedOrigins = [
+    let allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5500',
       'http://127.0.0.1:5500',
-      process.env.CORS_ORIGIN || 'https://blog-api-wpbz.onrender.com'
+      'http://localhost:8080',  // Добавляем порт для Vue CLI
+      'http://localhost:5173'   // Добавляем порт для Vite
     ];
+    
+    // Если указан CORS_ORIGIN, добавляем его значения в список разрешенных
+    if (process.env.CORS_ORIGIN) {
+      // Разбиваем строку по запятым и добавляем в список
+      const corsOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+      allowedOrigins = [...new Set([...allowedOrigins, ...corsOrigins])];
+    }
+    
+    console.log(`CORS request from: ${origin}`);
+    console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
     
     // Разрешаем null только для разработки
     if (process.env.NODE_ENV !== 'production' && origin === 'null') {

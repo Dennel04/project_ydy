@@ -9,8 +9,10 @@ const setTokenCookie = (res, token, expiry = '7d') => {
   
   // В production добавляем дополнительные параметры безопасности
   if (process.env.NODE_ENV === 'production') {
+    // В production, но разрешаем localhost для разработки
     cookieOptions.secure = true;  // Только HTTPS
-    cookieOptions.sameSite = 'strict'; // Защита от CSRF
+    cookieOptions.sameSite = 'none'; // Для кросс-доменных запросов
+    
     // Ограничиваем домен в продакшн, если указан
     if (process.env.COOKIE_DOMAIN) {
       cookieOptions.domain = process.env.COOKIE_DOMAIN;
@@ -24,16 +26,22 @@ const setTokenCookie = (res, token, expiry = '7d') => {
 // Middleware для удаления JWT cookie (при выходе)
 const clearTokenCookie = (res) => {
   // Очищаем куки
-  res.clearCookie('token', { 
+  const cookieOptions = { 
     httpOnly: true,
     path: '/',
-    // В production учитываем дополнительные параметры
-    ...(process.env.NODE_ENV === 'production' && {
-      secure: true,
-      sameSite: 'strict',
-      domain: process.env.COOKIE_DOMAIN
-    })
-  });
+  };
+  
+  // В production учитываем дополнительные параметры
+  if (process.env.NODE_ENV === 'production') {
+    cookieOptions.secure = true;
+    cookieOptions.sameSite = 'none';
+    
+    if (process.env.COOKIE_DOMAIN) {
+      cookieOptions.domain = process.env.COOKIE_DOMAIN;
+    }
+  }
+  
+  res.clearCookie('token', cookieOptions);
   return res;
 };
 
