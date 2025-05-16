@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   isEmailVerified: { type: Boolean, default: false },
   liked_comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
-  googleId: { type: String, sparse: true },
+  googleId: { type: String, index: true, sparse: true },
   
   // Поля для безопасности
   loginAttempts: { type: Number, default: 0 }, // Количество неудачных попыток входа
@@ -33,9 +33,6 @@ UserSchema.index({ username: 1 });
 
 // Индекс для проверки подтверждения email
 UserSchema.index({ isEmailVerified: 1 });
-
-// Добавляем индекс для поиска по googleId
-UserSchema.index({ googleId: 1 });
 
 // Индекс для поиска заблокированных аккаунтов
 UserSchema.index({ lockUntil: 1 });

@@ -14,6 +14,9 @@ function formatDate(isoDate) {
   
   const date = new Date(isoDate);
   
+  // Проверяем на валидность даты
+  if (isNaN(date.getTime())) return isoDate;
+  
   // Форматируем дату в строку YYYY-MM-DD HH:MM:SS
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -26,31 +29,38 @@ function formatDate(isoDate) {
 }
 
 /**
+ * Проверяет, является ли объект MongoDB ObjectId
+ * @param {Object} obj - Объект для проверки
+ * @returns {boolean} - true, если объект является ObjectId
+ */
+function isObjectId(obj) {
+  // Проверка на ObjectId из mongoose
+  return obj && obj._bsontype === 'ObjectID';
+}
+
+/**
  * Форматирует объект Mongoose/MongoDB, заменяя _id на id
  * @param {Object} obj - Объект для форматирования
  * @returns {Object} - Форматированный объект
  */
 function formatObject(obj) {
-  if (!obj) return null;
-  
-  // Если это не объект, возвращаем без изменений
+  // Базовые проверки
+  if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') return obj;
   
-  // Если это массив, форматируем каждый элемент
+  // Обработка массивов
   if (Array.isArray(obj)) {
     return obj.map(item => formatObject(item));
   }
   
-  // Проверяем, является ли объект непосредственно ObjectId, а не документом с _id
-  if (obj._id && obj._id.toString && 
-      (Object.getPrototypeOf(obj).constructor.name === 'ObjectID' || 
-       Object.keys(obj).length === 1)) {
-    return obj._id.toString();
+  // Обработка MongoDB ObjectId
+  if (isObjectId(obj)) {
+    return obj.toString();
   }
   
-  // Если это объект mongoose, преобразуем в обычный объект
+  // Преобразование mongoose документа в обычный объект
   if (obj.toObject && typeof obj.toObject === 'function') {
-    obj = obj.toObject();
+    obj = obj.toObject({ getters: true });
   }
   
   // Создаем новый объект для результата
@@ -59,19 +69,20 @@ function formatObject(obj) {
   // Проходим по всем полям объекта
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      // Заменяем _id на id
+      // Обработка _id (преобразуем в id)
       if (key === '_id') {
-        result.id = obj._id.toString();
+        // Убедимся что _id всегда преобразуется в строку
+        result.id = obj._id.toString ? obj._id.toString() : obj._id;
       } 
-      // Форматируем даты
-      else if (key === 'createdAt' || key === 'updatedAt') {
+      // Форматирование дат
+      else if ((key === 'createdAt' || key === 'updatedAt') && obj[key]) {
         result[key] = formatDate(obj[key]);
       }
-      // Рекурсивно обрабатываем вложенные объекты
-      else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      // Рекурсивная обработка вложенных объектов
+      else if (obj[key] !== null && typeof obj[key] === 'object') {
         result[key] = formatObject(obj[key]);
       }
-      // Копируем остальные поля без изменений
+      // Копирование остальных полей без изменений
       else {
         result[key] = obj[key];
       }

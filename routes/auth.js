@@ -8,6 +8,7 @@ const passport = require('passport');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { setTokenCookie, clearTokenCookie } = require('../middleware/secureTokens');
 const formatResponse = require('../utils/formatResponse');
+const sanitizeUser = require('../utils/sanitizeUser');
 
 // Подключаем конфигурацию passport
 require('../config/passport');
@@ -181,16 +182,11 @@ router.post('/login', async (req, res) => {
     // Устанавливаем токен в HttpOnly cookie
     setTokenCookie(res, token, '7d');
     
-    // Базовый ответ с данными пользователя
-    const formattedUser = formatResponse({
-      id: user._id,
-      login: user.login,
-      username: user.username,
-      description: user.description,
-      image: user.image
-    });
+    // Санитизируем данные пользователя перед отправкой
+    const sanitizedUser = sanitizeUser(user);
     
-    const response = { user: formattedUser };
+    // Базовый ответ с данными пользователя
+    const response = { user: sanitizedUser };
     
     // Возвращаем токен только в режиме разработки или для тестирования
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
@@ -198,7 +194,7 @@ router.post('/login', async (req, res) => {
     }
     
     // Отправляем данные пользователя
-    res.json(response);
+    res.json(formatResponse(response));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -278,16 +274,14 @@ router.post('/google/verify-token', async (req, res) => {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
-    res.json({
+    // Применяем санитизацию данных пользователя
+    const sanitizedUser = sanitizeUser(user);
+    
+    // Используем formatResponse для форматирования ответа
+    res.json(formatResponse({
       token,
-      user: {
-        id: user._id,
-        login: user.login,
-        username: user.username,
-        description: user.description,
-        image: user.image
-      }
-    });
+      user: sanitizedUser
+    }));
   } catch (error) {
     console.error('Error verifying Google token:', error);
     res.status(401).json({ message: 'Недействительный токен' });
@@ -331,16 +325,11 @@ router.post('/refresh-token', async (req, res) => {
     // Устанавливаем токен в HttpOnly cookie
     setTokenCookie(res, newToken, '7d');
     
-    // Базовый ответ с данными пользователя
-    const formattedUser = formatResponse({
-      id: user._id,
-      login: user.login,
-      username: user.username,
-      description: user.description,
-      image: user.image
-    });
+    // Санитизируем данные пользователя перед отправкой
+    const sanitizedUser = sanitizeUser(user);
     
-    const response = { user: formattedUser };
+    // Базовый ответ с данными пользователя
+    const response = { user: sanitizedUser };
     
     // Возвращаем токен только в режиме разработки или для тестирования
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
@@ -348,7 +337,7 @@ router.post('/refresh-token', async (req, res) => {
     }
     
     // Отправляем данные пользователя
-    res.json(response);
+    res.json(formatResponse(response));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -367,7 +356,8 @@ router.get('/:id', async (req, res) => {
     post.views += 1;
     await post.save();
     
-    res.json(post);
+    // Форматируем ответ перед отправкой
+    res.json(formatResponse(post));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении поста' });
   }
