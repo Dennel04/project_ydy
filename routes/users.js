@@ -7,15 +7,18 @@ const cloudinary = require('../utils/cloudinary');
 const { validateUserProfile, validatePasswordChange, validateEmailChange } = require('../middleware/validation');
 const { avatarUploader } = require('../middleware/imageProcessor');
 const formatResponse = require('../utils/formatResponse');
+const sanitizeUser = require('../utils/sanitizeUser');
 
 // Получить профиль текущего пользователя
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
-    res.json(formatResponse(user));
+    // Применяем санитизацию и форматируем ответ
+    const sanitizedUser = sanitizeUser(user);
+    res.json(formatResponse(sanitizedUser));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении профиля' });
   }
@@ -24,14 +27,15 @@ router.get('/profile', auth, async (req, res) => {
 // Получить профиль пользователя по ID
 router.get('/:id', async (req, res) => {
   try {
-    // Исключаем конфиденциальные данные из ответа
-    const user = await User.findById(req.params.id)
-      .select('username description image posts'); // Только публичные поля
+    const user = await User.findById(req.params.id);
     
     if (!user) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
-    res.json(formatResponse(user));
+    
+    // Применяем sanitizeUser с опцией publicView
+    const sanitizedUser = sanitizeUser(user, { publicView: true });
+    res.json(formatResponse(sanitizedUser));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении профиля' });
   }
@@ -52,7 +56,6 @@ router.put('/profile', auth, validateUserProfile, async (req, res) => {
       },
       { 
         new: true,            // вернуть обновленный документ
-        select: '-password',  // исключить пароль из результата
         runValidators: true   // запустить валидаторы схемы
       }
     );
@@ -61,7 +64,9 @@ router.put('/profile', auth, validateUserProfile, async (req, res) => {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
-    res.json(formatResponse(updatedUser));
+    // Применяем санитизацию данных пользователя
+    const sanitizedUser = sanitizeUser(updatedUser);
+    res.json(formatResponse(sanitizedUser));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при обновлении профиля' });
@@ -102,7 +107,7 @@ router.put('/change-password', auth, validatePasswordChange, async (req, res) =>
     
     await user.save();
     
-    res.json({ message: 'Пароль успешно изменен' });
+    res.json(formatResponse({ message: 'Пароль успешно изменен' }));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при смене пароля' });
   }
@@ -185,10 +190,10 @@ router.put('/change-email', auth, validateEmailChange, async (req, res) => {
       console.error('Ошибка отправки писем:', err);
     }
     
-    res.json({ 
+    res.json(formatResponse({ 
       message: 'Email успешно изменен. Пожалуйста, подтвердите новый email, перейдя по ссылке в письме.',
       requiresVerification: true
-    });
+    }));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при смене email' });
@@ -232,14 +237,17 @@ router.post('/upload-avatar', auth, avatarUploader.single('avatar'), async (req,
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
       { image: imageUrl },
-      { new: true, select: '-password' }
+      { new: true }
     );
     
-    res.json({ 
+    // Санитизируем данные пользователя перед отправкой
+    const sanitizedUser = sanitizeUser(updatedUser);
+    
+    res.json(formatResponse({ 
       message: 'Аватар успешно загружен', 
       imageUrl,
-      user: updatedUser
-    });
+      user: sanitizedUser
+    }));
   } catch (e) {
     console.error('Ошибка при загрузке аватара:', e);
     next(e); // Передаем ошибку глобальному обработчику
@@ -277,9 +285,9 @@ router.delete('/remove-avatar', auth, async (req, res) => {
     user.image = null;
     await user.save();
     
-    res.json({ 
+    res.json(formatResponse({ 
       message: 'Аватар успешно удален'
-    });
+    }));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при удалении аватара' });
@@ -295,10 +303,10 @@ router.get('/auth-type', auth, async (req, res) => {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
     
-    res.json({
+    res.json(formatResponse({
       isGoogleUser: !!user.googleId,
       authType: user.googleId ? 'google' : 'email'
-    });
+    }));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Ошибка при определении типа аутентификации' });

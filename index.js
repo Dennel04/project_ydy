@@ -33,19 +33,51 @@ if (missingEnvVars.length > 0) {
 
 const app = express();
 
+// Настройка для работы за прокси (например, для rate-limiter)
+app.set('trust proxy', 1);
+
 // Настройка CORS
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        process.env.CORS_ORIGIN || 'https://blog-api-wpbz.onrender.com',
-        'null', // Разрешаем запросы из локальных файлов
-        'file://',
-        'http://localhost:3000',
-        'http://localhost:5500',
-        'http://127.0.0.1:5500',
-        'https://file.io' // Разрешаем запросы из файлового хостинга
-      ]
-    : '*', // В режиме разработки разрешаем все запросы
+  origin: function(origin, callback) {
+    // В производственном режиме не разрешаем запросы без origin
+    if (!origin && process.env.NODE_ENV === 'production') {
+      return callback(new Error('Не разрешено политикой CORS'), false);
+    }
+    // Разрешаем запросы без origin в режиме разработки
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Список разрешенных источников
+    let allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'http://localhost:8080',  // Добавляем порт для Vue CLI
+      'http://localhost:5173'   // Добавляем порт для Vite
+    ];
+    
+    // Если указан CORS_ORIGIN, добавляем его значения в список разрешенных
+    if (process.env.CORS_ORIGIN) {
+      // Разбиваем строку по запятым и добавляем в список
+      const corsOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+      allowedOrigins = [...new Set([...allowedOrigins, ...corsOrigins])];
+    }
+    
+    console.log(`CORS request from: ${origin}`);
+    console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+    
+    // Разрешаем null только для разработки
+    if (process.env.NODE_ENV !== 'production' && origin === 'null') {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Не разрешено политикой CORS'));
+    }
+  },
   credentials: true, // Разрешаем отправку куков и аутентификационных заголовков
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -57,15 +89,21 @@ app.use(cors(corsOptions));
 app.use(securityHeaders);
 
 // Middleware
-app.use(morgan('dev')); // Логирование запросов
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev')); // Логирование настраиваем в зависимости от окружения
 app.use(express.json({ limit: '1mb' })); // Ограничиваем размер JSON
 app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Ограничиваем размер данных формы
+
+// Добавляем сжатие для production
+if (process.env.NODE_ENV === 'production') {
+  const compression = require('compression');
+  app.use(compression());
+}
 
 // Cookie parser для работы с cookies
 app.use(cookieParser());
 
 // Настройка сессий для работы с CSRF
-app.use(session({
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'super-secret-session-key',
   resave: false,
   saveUninitialized: false,
@@ -74,7 +112,22 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax'
   }
-}));
+};
+
+// В production используем MongoDB для хранения сессий
+if (process.env.NODE_ENV === 'production') {
+  const MongoStore = require('connect-mongo');
+  sessionConfig.store = MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    ttl: 14 * 24 * 60 * 60, // 14 дней
+    crypto: {
+      secret: process.env.SESSION_SECRET || 'mongo-session-secret'
+    },
+    autoRemove: 'native'
+  });
+}
+
+app.use(session(sessionConfig));
 
 // CSRF защита
 app.use(csrfToken);
@@ -105,8 +158,6 @@ app.use('/uploads', express.static(uploadDir));
 const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   connectTimeoutMS: 30000, // увеличенный таймаут
   socketTimeoutMS: 30000    // увеличенный таймаут сокета
 })
@@ -159,14 +210,47 @@ app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken });
 });
 
-// Маршрут для проверки CORS
-app.get('/api/cors-test', (req, res) => {
-  res.json({ 
-    message: 'CORS настроен правильно!',
-    origin: req.headers.origin || 'Неизвестный источник',
-    time: new Date().toISOString()
+// Тестовые маршруты доступны только вне production
+if (process.env.NODE_ENV !== 'production') {
+  // Маршрут для проверки CORS
+  app.get('/api/cors-test', (req, res) => {
+    res.json({ 
+      message: 'CORS настроен правильно!',
+      origin: req.headers.origin || 'Неизвестный источник',
+      time: new Date().toISOString()
+    });
   });
-});
+
+  // Тестовый маршрут для проверки форматирования
+  app.get('/api/format-test', (req, res) => {
+    const mongoose = require('mongoose');
+    const now = new Date();
+    const testObject = {
+      _id: new mongoose.Types.ObjectId(),
+      name: 'Тестовый объект',
+      nested: {
+        _id: new mongoose.Types.ObjectId(),
+        value: 'Вложенное значение'
+      },
+      createdAt: now,
+      updatedAt: now,
+      items: [
+        {
+          _id: new mongoose.Types.ObjectId(),
+          name: 'Элемент 1',
+          timestamp: now
+        },
+        {
+          _id: new mongoose.Types.ObjectId(),
+          name: 'Элемент 2',
+          timestamp: now
+        }
+      ]
+    };
+    
+    res.json(testObject);
+  });
+}
 
 // Обработка ошибок 404
 app.use((req, res, next) => {

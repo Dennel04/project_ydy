@@ -22,14 +22,26 @@ function responseFormatter(req, res, next) {
       (data.message && Object.keys(data).length === 1) ||
       data.error
     ) {
+      // console.log('[ResponseFormatter] Пропуск форматирования для простого ответа', 
+      //   typeof data === 'object' ? JSON.stringify(data).substring(0, 100) : typeof data);
       return originalJson.call(this, data);
     }
     
-    // Форматируем данные
-    const formattedData = formatResponse(data);
-    
-    // Вызываем оригинальный метод с отформатированными данными
-    return originalJson.call(this, formattedData);
+    try {
+      // Форматируем данные
+      const formattedData = formatResponse(data);
+      
+      // Логируем для отладки (закомментировано для production)
+      // console.log('[ResponseFormatter] Форматирование применено:', 
+      //  `Путь: ${req.path}, Тип данных: ${Array.isArray(data) ? 'Array' : 'Object'}`);
+      
+      // Вызываем оригинальный метод с отформатированными данными
+      return originalJson.call(this, formattedData);
+    } catch (error) {
+      console.error('[ResponseFormatter] Ошибка форматирования:', error);
+      // При ошибке возвращаем оригинальные данные
+      return originalJson.call(this, data);
+    }
   };
   
   next();
