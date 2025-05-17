@@ -9,7 +9,8 @@ const PostSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   isPublished: { type: Boolean, default: true },
-  image: { type: String },
+  mainImage: { type: String }, // Главное изображение поста
+  images: [{ type: String }],  // Массив URL встроенных изображений
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } });
 
 // Добавляем индексы для оптимизации запросов

@@ -9,11 +9,12 @@ const postImageUpload = require('../middleware/postImageUpload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
 const formatResponse = require('../utils/formatResponse');
+const cloudinary = require('../utils/cloudinary');
 
 // Создать пост (только авторизованный пользователь)
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, content, tags, isPublished } = req.body;
+    const { name, content, tags, isPublished, mainImage, images } = req.body;
     
     // Валидация входных данных
     if (!name || name.trim().length < 3) {
@@ -41,12 +42,15 @@ router.post('/', auth, async (req, res) => {
       }
     }
     
+    // Создаем пост с полями для изображений
     const post = new Post({
       name,
       content,
       tags: tagIds,
       isPublished: isPublished !== undefined ? isPublished : true,
-      author: req.user.userId
+      author: req.user.userId,
+      mainImage: mainImage || null, // Добавляем главное изображение, если есть
+      images: images || [] // Добавляем массив изображений, если есть
     });
     
     await post.save();
@@ -116,7 +120,7 @@ router.put('/:id', auth, async (req, res) => {
   session.startTransaction();
   
   try {
-    const { name, content, tags, isPublished } = req.body;
+    const { name, content, tags, isPublished, mainImage, images } = req.body;
     const post = await Post.findById(req.params.id).session(session);
     
     if (!post) {
@@ -132,6 +136,15 @@ router.put('/:id', auth, async (req, res) => {
     post.name = name || post.name;
     post.content = content || post.content;
     post.isPublished = isPublished !== undefined ? isPublished : post.isPublished;
+    
+    // Обновляем изображения, если они предоставлены
+    if (mainImage !== undefined) {
+      post.mainImage = mainImage;
+    }
+    
+    if (images !== undefined) {
+      post.images = images;
+    }
     
     // Обрабатываем теги, если они предоставлены
     if (tags && Array.isArray(tags)) {
@@ -435,8 +448,8 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// Загрузить изображение для поста
-router.post('/upload-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
+// Загрузить главное изображение для поста
+router.post('/upload-main-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
   try {
     // Проверяем, загружен ли файл
     if (!req.file) {
@@ -455,17 +468,17 @@ router.post('/upload-image/:id', auth, postImageUpload.single('image'), async (r
       return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
     }
     
-    // Если у поста уже есть изображение, удаляем его из Cloudinary
-    if (post.image) {
+    // Если у поста уже есть главное изображение, удаляем его из Cloudinary
+    if (post.mainImage) {
       try {
         // Извлекаем public_id из URL
-        const publicId = post.image.split('/').pop().split('.')[0];
+        const publicId = post.mainImage.split('/').pop().split('.')[0];
         // Определяем папку на основе URL
-        const folder = post.image.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
+        const folder = post.mainImage.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
         // Удаляем старое изображение
         await cloudinary.uploader.destroy(`${folder}/${publicId}`);
       } catch (error) {
-        console.log('Ошибка при удалении старого изображения поста:', error);
+        console.log('Ошибка при удалении старого главного изображения поста:', error);
         // Продолжаем работу даже при ошибке удаления
       }
     }
@@ -473,17 +486,152 @@ router.post('/upload-image/:id', auth, postImageUpload.single('image'), async (r
     // Cloudinary возвращает полный URL в req.file.path
     const imageUrl = req.file.path;
     
-    // Сохраняем URL изображения в посте
-    post.image = imageUrl;
+    // Сохраняем URL главного изображения в посте
+    post.mainImage = imageUrl;
     await post.save();
     
     res.json({ 
-      message: 'Изображение успешно загружено', 
+      message: 'Главное изображение успешно загружено', 
       imageUrl
     });
   } catch (e) {
     console.error(e);
     next(e); // Передаем ошибку глобальному обработчику
+  }
+});
+
+// Загрузить дополнительное изображение для поста
+router.post('/upload-content-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
+  try {
+    // Проверяем, загружен ли файл
+    if (!req.file) {
+      return res.status(400).json({ message: 'Файл не был загружен' });
+    }
+
+    // Находим пост в базе
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Пост не найден' });
+    }
+    
+    // Проверяем, что текущий пользователь - автор поста
+    if (post.author.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+    }
+    
+    // Cloudinary возвращает полный URL в req.file.path
+    const imageUrl = req.file.path;
+    
+    // Добавляем URL изображения в массив
+    if (!post.images) {
+      post.images = [];
+    }
+    post.images.push(imageUrl);
+    await post.save();
+    
+    res.json({ 
+      message: 'Изображение контента успешно загружено', 
+      imageUrl
+    });
+  } catch (e) {
+    console.error(e);
+    next(e); // Передаем ошибку глобальному обработчику
+  }
+});
+
+// Удалить изображение из контента поста
+router.delete('/delete-content-image/:id', auth, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ message: 'URL изображения не указан' });
+    }
+    
+    // Находим пост в базе
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Пост не найден' });
+    }
+    
+    // Проверяем, что текущий пользователь - автор поста
+    if (post.author.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+    }
+    
+    // Проверяем, есть ли изображение в массиве
+    if (!post.images || !post.images.includes(imageUrl)) {
+      return res.status(404).json({ message: 'Изображение не найдено в посте' });
+    }
+    
+    // Удаляем изображение из Cloudinary
+    try {
+      // Извлекаем public_id из URL
+      const publicId = imageUrl.split('/').pop().split('.')[0];
+      // Определяем папку на основе URL
+      const folder = imageUrl.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
+      // Удаляем изображение
+      await cloudinary.uploader.destroy(`${folder}/${publicId}`);
+    } catch (error) {
+      console.log('Ошибка при удалении изображения из Cloudinary:', error);
+      // Продолжаем работу даже при ошибке удаления
+    }
+    
+    // Удаляем URL из массива
+    post.images = post.images.filter(img => img !== imageUrl);
+    await post.save();
+    
+    res.json({ 
+      message: 'Изображение успешно удалено', 
+      images: post.images
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Ошибка при удалении изображения' });
+  }
+});
+
+// Удалить главное изображение поста
+router.delete('/delete-main-image/:id', auth, async (req, res) => {
+  try {
+    // Находим пост в базе
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Пост не найден' });
+    }
+    
+    // Проверяем, что текущий пользователь - автор поста
+    if (post.author.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+    }
+    
+    // Проверяем, есть ли главное изображение
+    if (!post.mainImage) {
+      return res.status(400).json({ message: 'У поста нет главного изображения' });
+    }
+    
+    // Удаляем изображение из Cloudinary
+    try {
+      const publicId = post.mainImage.split('/').pop().split('.')[0];
+      const folder = post.mainImage.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
+      await cloudinary.uploader.destroy(`${folder}/${publicId}`);
+    } catch (error) {
+      console.log('Ошибка при удалении главного изображения из Cloudinary:', error);
+    }
+    
+    // Удаляем URL главного изображения из поста
+    post.mainImage = null;
+    await post.save();
+    
+    res.json({ 
+      message: 'Главное изображение успешно удалено'
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Ошибка при удалении главного изображения' });
   }
 });
 
