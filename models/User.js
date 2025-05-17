@@ -11,6 +11,7 @@ const UserSchema = new mongoose.Schema({
   favourite: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   email: { type: String, required: true, unique: true },
   isEmailVerified: { type: Boolean, default: false },
+  emailVerificationExpires: { type: Date, default: () => new Date(Date.now() + 48 * 60 * 60 * 1000) }, // 48 часов по умолчанию
   liked_comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   googleId: { type: String, index: true, sparse: true },
   

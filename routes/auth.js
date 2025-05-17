@@ -52,13 +52,41 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Некорректный формат email' });
     }
     
+    // Проверяем и удаляем просроченные неподтвержденные аккаунты с таким же логином или email
+    await User.deleteMany({
+      $or: [
+        { login, isEmailVerified: false, emailVerificationExpires: { $lt: new Date() } },
+        { email, isEmailVerified: false, emailVerificationExpires: { $lt: new Date() } }
+      ]
+    });
+    
+    // Проверяем, существует ли активный пользователь с таким логином
     const candidateLogin = await User.findOne({ login });
     if (candidateLogin) {
+      if (!candidateLogin.isEmailVerified) {
+        // Если существует неподтвержденный пользователь с таким логином,
+        // предлагаем повторно отправить письмо или зарегистрироваться через некоторое время
+        const hoursLeft = Math.ceil((candidateLogin.emailVerificationExpires - new Date()) / (1000 * 60 * 60));
+        return res.status(400).json({ 
+          message: `Пользователь с таким логином уже зарегистрирован, но не подтвердил email. Попробуйте через ${hoursLeft} ч.`,
+          pendingVerification: true 
+        });
+      }
       return res.status(400).json({ message: 'Пользователь с таким логином уже существует' });
     }
     
+    // Проверяем, существует ли активный пользователь с таким email
     const candidateEmail = await User.findOne({ email });
     if (candidateEmail) {
+      if (!candidateEmail.isEmailVerified) {
+        // Если существует неподтвержденный пользователь с таким email,
+        // предлагаем повторно отправить письмо или зарегистрироваться через некоторое время
+        const hoursLeft = Math.ceil((candidateEmail.emailVerificationExpires - new Date()) / (1000 * 60 * 60));
+        return res.status(400).json({ 
+          message: `Email уже зарегистрирован, но не подтвержден. Попробуйте через ${hoursLeft} ч.`,
+          pendingVerification: true 
+        });
+      }
       return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
     }
     
@@ -72,7 +100,8 @@ router.post('/register', async (req, res) => {
       password: hashPassword,
       username,
       description: description || '',
-      email
+      email,
+      emailVerificationExpires: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 час на подтверждение
     });
     await user.save();
 
@@ -360,6 +389,64 @@ router.get('/:id', async (req, res) => {
     res.json(formatResponse(post));
   } catch (e) {
     res.status(500).json({ message: 'Ошибка при получении поста' });
+  }
+});
+
+// Повторная отправка письма с подтверждением
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email обязателен' });
+    }
+    
+    // Находим пользователя по email
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+    
+    // Если email уже подтвержден
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: 'Email уже подтвержден' });
+    }
+    
+    // Обновляем срок действия подтверждения
+    user.emailVerificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    await user.save();
+    
+    // Создаем токен для подтверждения
+    const emailToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '48h' } // Увеличиваем время жизни токена
+    );
+    
+    const url = `${process.env.API_URL || 'http://localhost:5000'}/api/auth/verify-email?token=${emailToken}`;
+    
+    // Отправляем письмо
+    try {
+      await transporter.sendMail({
+        to: user.email,
+        subject: 'Подтверждение регистрации (повторная отправка)',
+        html: `
+          <h2>Повторное подтверждение регистрации</h2>
+          <p>Для завершения регистрации перейдите по ссылке:</p>
+          <a href="${url}">${url}</a>
+          <p>Ссылка действительна 48 часов.</p>
+        `
+      });
+      
+      res.json({ message: 'Письмо с подтверждением отправлено повторно' });
+    } catch (err) {
+      console.error('Ошибка отправки письма:', err);
+      res.status(500).json({ message: 'Ошибка при отправке письма' });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
 

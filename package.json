@@ -7,7 +7,9 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "seed-tags": "node utils/seedTags.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "cleanup-users": "node utils/cleanupUnverifiedUsers.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate-posts-images": "node utils/migrate-posts-images.js"
   },
   "keywords": [],
   "author": "",
