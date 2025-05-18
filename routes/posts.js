@@ -54,6 +54,7 @@ router.post('/', auth, createPostUpload, async (req, res) => {
       }
     }
     
+
     // Обрабатываем загруженные изображения, если они есть
     let mainImageUrl = null;
     let contentImagesUrls = [];
@@ -81,6 +82,7 @@ router.post('/', auth, createPostUpload, async (req, res) => {
     }
     
     // Создаем пост
+
     const post = new Post({
       name,
       content,
@@ -89,6 +91,7 @@ router.post('/', auth, createPostUpload, async (req, res) => {
       author: req.user.userId,
       mainImage: mainImageUrl,
       images: contentImagesUrls
+
     });
     
     await post.save();
@@ -530,6 +533,7 @@ router.post('/upload-main-image/:id', auth, postImageUpload.single('image'), asy
     
     res.json({ 
       message: 'Главное изображение успешно загружено', 
+
       imageUrl
     });
   } catch (e) {
@@ -577,6 +581,7 @@ router.post('/upload-content-image/:id', auth, postImageUpload.single('image'), 
     next(e); // Передаем ошибку глобальному обработчику
   }
 });
+
 
 // Удалить изображение из контента поста
 router.delete('/delete-content-image/:id', auth, async (req, res) => {
