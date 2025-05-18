@@ -53,9 +53,9 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5500',
       'http://127.0.0.1:5500',
-      'http://localhost:8080',  // Добавляем порт для Vue CLI
-      'http://localhost:5173',   // Добавляем порт для Vite
-      'https://blog-api-wpbz.onrender.com'
+      'http://localhost:8080',  
+      'http://localhost:5173',
+      'https://blog-api-wpbz.onrender.com'  
     ];
     
     // Если указан CORS_ORIGIN, добавляем его значения в список разрешенных

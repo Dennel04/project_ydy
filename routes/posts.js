@@ -6,15 +6,17 @@ const User = require('../models/User');
 const Tag = require('../models/Tag');
 const upload = require('../middleware/cloudinaryUpload');
 const postImageUpload = require('../middleware/postImageUpload');
+const createPostUpload = require('../middleware/createPostUpload');
 const Comment = require('../models/Comment');
 const mongoose = require('mongoose');
 const formatResponse = require('../utils/formatResponse');
 const cloudinary = require('../utils/cloudinary');
 
 // Создать пост (только авторизованный пользователь)
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, createPostUpload, async (req, res) => {
   try {
-    const { name, content, tags, isPublished, mainImage, images } = req.body;
+    const { name, content, isPublished } = req.body;
+    let tags = req.body.tags;
     
     // Валидация входных данных
     if (!name || name.trim().length < 3) {
@@ -27,7 +29,17 @@ router.post('/', auth, async (req, res) => {
     
     // Проверяем теги
     let tagIds = [];
-    if (tags && Array.isArray(tags)) {
+    if (tags) {
+      // Если tags передан как строка, преобразуем его в массив
+      if (typeof tags === 'string') {
+        try {
+          tags = JSON.parse(tags);
+        } catch (e) {
+          // Если это одиночное значение, создаем массив из него
+          tags = [tags];
+        }
+      }
+      
       // Получаем ID тегов и проверяем их существование
       for (const tagId of tags) {
         const tag = await Tag.findById(tagId);
@@ -42,15 +54,44 @@ router.post('/', auth, async (req, res) => {
       }
     }
     
-    // Создаем пост с полями для изображений
+
+    // Обрабатываем загруженные изображения, если они есть
+    let mainImageUrl = null;
+    let contentImagesUrls = [];
+    
+    // Если есть загруженные файлы
+    if (req.files) {
+      // Если загружено главное изображение
+      if (req.files.mainImage && req.files.mainImage.length > 0) {
+        mainImageUrl = req.files.mainImage[0].path;
+      }
+      
+      // Если загружены дополнительные изображения
+      if (req.files.contentImages && req.files.contentImages.length > 0) {
+        contentImagesUrls = req.files.contentImages.map(file => file.path);
+      }
+    }
+    
+    // Если изображения переданы как URL-строки
+    if (req.body.mainImage) {
+      mainImageUrl = req.body.mainImage;
+    }
+    
+    if (req.body.images && Array.isArray(req.body.images)) {
+      contentImagesUrls = req.body.images;
+    }
+    
+    // Создаем пост
+
     const post = new Post({
       name,
       content,
       tags: tagIds,
       isPublished: isPublished !== undefined ? isPublished : true,
       author: req.user.userId,
-      mainImage: mainImage || null, // Добавляем главное изображение, если есть
-      images: images || [] // Добавляем массив изображений, если есть
+      mainImage: mainImageUrl,
+      images: contentImagesUrls
+
     });
     
     await post.save();
@@ -492,6 +533,7 @@ router.post('/upload-main-image/:id', auth, postImageUpload.single('image'), asy
     
     res.json({ 
       message: 'Главное изображение успешно загружено', 
+
       imageUrl
     });
   } catch (e) {
@@ -539,6 +581,7 @@ router.post('/upload-content-image/:id', auth, postImageUpload.single('image'), 
     next(e); // Передаем ошибку глобальному обработчику
   }
 });
+
 
 // Удалить изображение из контента поста
 router.delete('/delete-content-image/:id', auth, async (req, res) => {

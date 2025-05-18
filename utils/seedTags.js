@@ -14,26 +14,15 @@ const createSlug = (name) => {
 
 // Список предопределенных тегов с описаниями
 const tagsList = [
-  { name: 'Technology', description: 'Posts about technology, gadgets, and digital trends' },
-  { name: 'Programming', description: 'Coding, development, and software engineering topics' },
-  { name: 'Health', description: 'Health and wellness related content' },
-  { name: 'Science', description: 'Scientific discoveries and research' },
-  { name: 'Business', description: 'Business strategies, entrepreneurship, and finance' },
-  { name: 'Education', description: 'Learning resources, educational content, and teaching methods' },
-  { name: 'Travel', description: 'Travel destinations, tips, and experiences' },
-  { name: 'Food', description: 'Recipes, culinary arts, and food culture' },
-  { name: 'Sports', description: 'Sports news, fitness, and athletic achievements' },
-  { name: 'Art', description: 'Visual arts, design, and creative expression' },
-  { name: 'Music', description: 'Music genres, artists, and audio content' },
-  { name: 'Literature', description: 'Books, writing, and literary discussions' },
-  { name: 'Politics', description: 'Political news, opinions, and global affairs' },
-  { name: 'Environment', description: 'Environmental issues, sustainability, and nature' },
-  { name: 'Fashion', description: 'Fashion trends, style guides, and clothing' },
-  { name: 'Entertainment', description: 'Movies, TV shows, and popular culture' },
-  { name: 'History', description: 'Historical events, figures, and cultural heritage' },
-  { name: 'Psychology', description: 'Human behavior, mental health, and psychological concepts' },
-  { name: 'Philosophy', description: 'Philosophical ideas, ethics, and critical thinking' },
-  { name: 'Photography', description: 'Photography techniques, equipment, and visual storytelling' }
+  { name: 'Nature', description: 'Environment, plants, animals, and natural world topics' },
+  { name: 'Games', description: 'Video games, board games, gaming industry and game development' },
+  { name: 'Design', description: 'Graphic design, UX/UI, web design and visual principles' },
+  { name: 'Programming', description: 'Coding, software development and technical solutions' },
+  { name: 'News', description: 'Current events, breaking news and informational content' },
+  { name: 'Education', description: 'Learning resources, courses, and educational materials' },
+  { name: 'Creativity', description: 'Creative arts, self-expression, and innovative ideas' },
+  { name: 'Entertainment', description: 'Movies, TV shows, media and popular culture' },
+  { name: 'Technology', description: 'Technology trends, gadgets, innovations and digital advances' }
 ];
 
 // Функция для заполнения базы данных тегами
