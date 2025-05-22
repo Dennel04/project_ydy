@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Security Settings{% endblock title %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'posts/profile.css' %}">
+    <link rel="stylesheet" href="{% static 'posts/profile_security.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock css %}
+
+{% block body %}
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1 class="profile-title">Security</h1>
+        </div>
+        
+        <div class="profile-content">
+            <div class="profile-sidebar">
+                <div class="profile-avatar">
+                    {% if user_data.avatar %}
+                        <img src="{{ user_data.avatar }}" alt="User Profile" id="avatar-img">
+                    {% else %}
+                        <div class="avatar-placeholder" id="avatar-placeholder">
+                            {{ user_data.username|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="profile-username" id="username-display">{{ user_data.username }}</div>
+                <div class="profile-login">@{{ user_data.login }}</div>
+                
+                <nav class="profile-nav">
+                    <ul class="profile-menu">
+                        <li class="profile-menu-item">
+                            <a href="{% url 'profile' %}">Profile</a>
+                        </li>
+                        <li class="profile-menu-item">
+                            <a href="#">My posts</a>
+                        </li>
+                        <li class="profile-menu-item active">
+                            <a href="{% url 'profile_security' %}">Security</a>
+                        </li>
+                        <li class="profile-menu-item">
+                            <a href="{% url 'logout' %}" class="logout-link">Log out</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="profile-form-container">
+                <!-- Change Password Section -->
+                <div class="security-section">
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <button id="edit-password-btn" class="edit-btn">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                    </div>
+                    <h2 class="security-section-title">Change Password</h2>
+                    <div class="security-section-description">
+                        Update your password to keep your account secure
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="current-password">Current Password</label>
+                        <input type="password" id="current-password" class="form-control" placeholder="Enter your current password" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="new-password">New Password</label>
+                        <input type="password" id="new-password" class="form-control" placeholder="Enter your new password" disabled>
+                        <div class="form-sublabel">Password must be at least 8 characters long and include numbers and special characters</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="confirm-password">Confirm New Password</label>
+                        <input type="password" id="confirm-password" class="form-control" placeholder="Confirm your new password" disabled>
+                    </div>
+                    
+                    <div class="password-strength-meter">
+                        <div class="strength-label">Password strength:</div>
+                        <div class="strength-bars">
+                            <div class="strength-bar" id="strength-bar-1"></div>
+                            <div class="strength-bar" id="strength-bar-2"></div>
+                            <div class="strength-bar" id="strength-bar-3"></div>
+                            <div class="strength-bar" id="strength-bar-4"></div>
+                        </div>
+                        <div class="strength-text" id="strength-text">Weak</div>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 20px; display: none;" id="password-save-container">
+                        <button id="cancel-password-btn" class="cancel-btn">Cancel</button>
+                        <button id="update-password-btn" class="security-btn">Update Password</button>
+                    </div>
+                </div>
+                
+                <div class="form-divider"></div>
+                
+                <!-- Change Email Section -->
+                <div class="security-section">
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <button id="edit-email-btn" class="edit-btn">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                    </div>
+                    <h2 class="security-section-title">Email Address</h2>
+                    <div class="security-section-description">
+                        Update your email address associated with your account
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Current Email</label>
+                        <div class="form-text current-email">{{ user_data.email|default:"No email set" }}</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="new-email">New Email Address</label>
+                        <input type="email" id="new-email" class="form-control" placeholder="Enter your new email address" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="password-for-email">Enter Password to Confirm</label>
+                        <input type="password" id="password-for-email" class="form-control" placeholder="Enter your password" disabled>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 20px; display: none;" id="email-save-container">
+                        <button id="cancel-email-btn" class="cancel-btn">Cancel</button>
+                        <button id="update-email-btn" class="security-btn">Update Email</button>
+                    </div>
+                </div>
+                
+                <div class="form-divider"></div>
+                
+                <!-- Security Notifications -->
+                <div class="security-section">
+                    <h2 class="security-section-title">Security Notifications</h2>
+                    <div class="security-section-description">
+                        Manage how we notify you about security events
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="notify-logins" class="form-check-input" checked disabled>
+                        <label for="notify-logins" class="form-check-label">Notify me about new logins</label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="notify-pass-changes" class="form-check-input" checked disabled>
+                        <label for="notify-pass-changes" class="form-check-label">Notify me about password changes</label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="notify-email-changes" class="form-check-input" checked disabled>
+                        <label for="notify-email-changes" class="form-check-label">Notify me about email changes</label>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button id="update-notifications-btn" class="security-btn" disabled>Save Preferences</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Password change elements
+            const editPasswordBtn = document.getElementById('edit-password-btn');
+            const cancelPasswordBtn = document.getElementById('cancel-password-btn');
+            const updatePasswordBtn = document.getElementById('update-password-btn');
+            const passwordSaveContainer = document.getElementById('password-save-container');
+            const currentPassword = document.getElementById('current-password');
+            const newPassword = document.getElementById('new-password');
+            const confirmPassword = document.getElementById('confirm-password');
+            const strengthBars = document.querySelectorAll('.strength-bar');
+            const strengthText = document.getElementById('strength-text');
+
+            // Email change elements
+            const editEmailBtn = document.getElementById('edit-email-btn');
+            const cancelEmailBtn = document.getElementById('cancel-email-btn');
+            const updateEmailBtn = document.getElementById('update-email-btn');
+            const emailSaveContainer = document.getElementById('email-save-container');
+            const newEmail = document.getElementById('new-email');
+            const passwordForEmail = document.getElementById('password-for-email');
+
+            // Initial values
+            const initialValues = {
+                currentPassword: '',
+                newPassword: '',
+                confirmPassword: '',
+                newEmail: '',
+                passwordForEmail: ''
+            };
+
+            // Password strength checker
+            function updatePasswordStrength() {
+                const password = newPassword.value;
+                let strength = 0;
+                if (password.length >= 8) strength++;
+                if (/[0-9]/.test(password)) strength++;
+                if (/[^A-Za-z0-9]/.test(password)) strength++;
+                if (password.length >= 12) strength++;
+
+                strengthBars.forEach((bar, index) => {
+                    bar.classList.remove('active');
+                    if (index < strength) {
+                        bar.classList.add('active');
+                    }
+                });
+
+                const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
+                strengthText.textContent = strengthLabels[strength] || 'Weak';
+            }
+
+            // Password match checker
+            function checkPasswordMatch() {
+                if (newPassword.value && confirmPassword.value) {
+                    if (newPassword.value === confirmPassword.value) {
+                        newPassword.classList.remove('password-mismatch');
+                        newPassword.classList.add('password-match');
+                        confirmPassword.classList.remove('password-mismatch');
+                        confirmPassword.classList.add('password-match');
+                    } else {
+                        newPassword.classList.remove('password-match');
+                        newPassword.classList.add('password-mismatch');
+                        confirmPassword.classList.remove('password-match');
+                        confirmPassword.classList.add('password-mismatch');
+                    }
+                } else {
+                    newPassword.classList.remove('password-match', 'password-mismatch');
+                    confirmPassword.classList.remove('password-match', 'password-mismatch');
+                }
+            }
+
+            // Toggle password edit mode
+            editPasswordBtn.addEventListener('click', function() {
+                currentPassword.disabled = false;
+                newPassword.disabled = false;
+                confirmPassword.disabled = false;
+                passwordSaveContainer.style.display = 'block';
+                editPasswordBtn.style.display = 'none';
+            });
+
+            // Cancel password changes
+            cancelPasswordBtn.addEventListener('click', function() {
+                currentPassword.disabled = true;
+                newPassword.disabled = true;
+                confirmPassword.disabled = true;
+                currentPassword.value = initialValues.currentPassword;
+                newPassword.value = initialValues.newPassword;
+                confirmPassword.value = initialValues.confirmPassword;
+                passwordSaveContainer.style.display = 'none';
+                editPasswordBtn.style.display = 'block';
+                updatePasswordStrength();
+                checkPasswordMatch();
+            });
+
+            // Update password
+            updatePasswordBtn.addEventListener('click', async function() {
+                const currentPasswordValue = currentPassword.value.trim();
+                const newPasswordValue = newPassword.value.trim();
+                const confirmPasswordValue = confirmPassword.value.trim();
+
+                if (!currentPasswordValue || !newPasswordValue || !confirmPasswordValue) {
+                    console.error('Все поля обязательны.');
+                    return;
+                }
+
+                if (newPasswordValue !== confirmPasswordValue) {
+                    console.error('Новые пароли не совпадают.');
+                    return;
+                }
+
+                if (newPasswordValue.length < 8 || !/[0-9]/.test(newPasswordValue) || !/[^A-Za-z0-9]/.test(newPasswordValue)) {
+                    console.error('Новый пароль должен быть длиной не менее 8 символов и содержать цифры и специальные символы.');
+                    return;
+                }
+
+                updatePasswordBtn.disabled = true;
+                updatePasswordBtn.textContent = 'Обновление...';
+
+                try {
+                    const csrfResponse = await fetch('{% url "get_csrf_token" %}');
+                    if (!csrfResponse.ok) {
+                        throw new Error('Не удалось получить CSRF-токен');
+                    }
+                    const csrfData = await csrfResponse.json();
+                    const csrfToken = csrfData.csrfToken;
+
+                    const data = {
+                        currentPassword: currentPasswordValue,
+                        newPassword: newPasswordValue
+                    };
+
+                    console.log('Отправка данных для смены пароля:', data);
+
+                    const response = await fetch('{% url "change_password" %}', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+
+                    if (!response.ok) {
+                        if (responseData.isGoogleUser) {
+                            console.error('Пользователи, зарегистрированные через Google, должны менять пароль в настройках своего Google-аккаунта.');
+                        } else {
+                            throw new Error(responseData.message || `Ошибка сервера: ${response.status}`);
+                        }
+                    }
+
+                    console.log('Пароль успешно изменен.');
+                    cancelPasswordBtn.click(); // Reset form
+                } catch (error) {
+                    console.error('Ошибка обновления пароля:', error.message);
+                } finally {
+                    updatePasswordBtn.disabled = false;
+                    updatePasswordBtn.textContent = 'Обновить пароль';
+                }
+            });
+
+            // Toggle email edit mode
+            editEmailBtn.addEventListener('click', function() {
+                newEmail.disabled = false;
+                passwordForEmail.disabled = false;
+                emailSaveContainer.style.display = 'block';
+                editEmailBtn.style.display = 'none';
+            });
+
+            // Cancel email changes
+            cancelEmailBtn.addEventListener('click', function() {
+                newEmail.disabled = true;
+                passwordForEmail.disabled = true;
+                newEmail.value = initialValues.newEmail;
+                passwordForEmail.value = initialValues.passwordForEmail;
+                emailSaveContainer.style.display = 'none';
+                editEmailBtn.style.display = 'block';
+            });
+
+            // Update email
+            updateEmailBtn.addEventListener('click', async function() {
+                const newEmailValue = newEmail.value.trim();
+                const passwordValue = passwordForEmail.value.trim();
+
+                if (!newEmailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmailValue)) {
+                    console.error('Пожалуйста, введите действительный адрес электронной почты.');
+                    return;
+                }
+
+                if (!passwordValue) {
+                    console.error('Пароль обязателен для подтверждения.');
+                    return;
+                }
+
+                updateEmailBtn.disabled = true;
+                updateEmailBtn.textContent = 'Обновление...';
+
+                try {
+                    const csrfResponse = await fetch('{% url "get_csrf_token" %}');
+                    if (!csrfResponse.ok) {
+                        throw new Error('Не удалось получить CSRF-токен');
+                    }
+                    const csrfData = await csrfResponse.json();
+                    const csrfToken = csrfData.csrfToken;
+
+                    const data = {
+                        newEmail: newEmailValue,
+                        password: passwordValue
+                    };
+
+                    console.log('Отправка данных для смены email:', data);
+
+                    const response = await fetch('{% url "change_email" %}', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+
+                    if (!response.ok) {
+                        if (responseData.isGoogleUser) {
+                            console.error('Пользователи, зарегистрированные через Google, должны менять email в настройках своего Google-аккаунта.');
+                        } else {
+                            throw new Error(responseData.message || `Ошибка сервера: ${response.status}`);
+                        }
+                    }
+
+                    console.log('Email успешно изменен. Пожалуйста, подтвердите новый email, перейдя по ссылке в письме.');
+                    document.querySelector('.current-email').textContent = newEmailValue;
+                    cancelEmailBtn.click(); // Reset form
+                } catch (error) {
+                    console.error('Ошибка обновления электронной почты:', error.message);
+                } finally {
+                    updateEmailBtn.disabled = false;
+                    updateEmailBtn.textContent = 'Обновить электронную почту';
+                }
+            });
+
+            // Update password strength and match on input
+            newPassword.addEventListener('input', updatePasswordStrength);
+            newPassword.addEventListener('input', checkPasswordMatch);
+            confirmPassword.addEventListener('input', checkPasswordMatch);
+        });
+    </script>
+{% endblock body %}

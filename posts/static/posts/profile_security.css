@@ -1,0 +1,168 @@
+/* Security page specific styles */
+.security-section {
+    margin-bottom: 30px;
+}
+
+.security-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #32339F;
+    margin-bottom: 10px;
+}
+
+.security-section-description {
+    font-size: 14px;
+    color: #61616B;
+    margin-bottom: 20px;
+}
+
+.security-btn {
+    background-color: #32339F;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+.security-btn:hover {
+    background-color: #4343D7;
+}
+
+/* Password strength meter */
+.password-strength-meter {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.strength-label {
+    font-size: 13px;
+    color: #61616B;
+}
+
+.strength-bars {
+    display: flex;
+    gap: 5px;
+}
+
+.strength-bar {
+    width: 25px;
+    height: 8px;
+    background-color: #EEEEFF;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.strength-bar.active {
+    background-color: #32339F;
+}
+
+.strength-text {
+    font-size: 13px;
+    color: #ABABB0;
+    margin-left: 5px;
+}
+
+/* Form check styles */
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.form-check-input {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    accent-color: #32339F;
+}
+
+.form-check-label {
+    font-size: 14px;
+    color: #333;
+}
+
+/* Current email display */
+.current-email {
+    font-weight: 500;
+}
+
+/* Red style for password mismatches */
+.password-mismatch {
+    border-color: #ff4d4d !important;
+    box-shadow: 0 0 5px rgba(255, 77, 77, 0.2) !important;
+}
+
+/* Green style for password matches */
+.password-match {
+    border-color: #2eb82e !important;
+    box-shadow: 0 0 5px rgba(46, 184, 46, 0.2) !important;
+}
+
+/* Input focus style */
+.form-control:focus {
+    outline: none;
+    border-color: #32339F;
+    box-shadow: 0 0 5px rgba(50, 51, 159, 0.2);
+}
+
+/* Edit button */
+.edit-btn {
+    background-color: #32339F;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.edit-btn:hover {
+    background-color: #4343D7;
+}
+
+/* Cancel button */
+.cancel-btn {
+    background-color: #ffffff;
+    color: #32339F;
+    border: 1px solid #32339F;
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.cancel-btn:hover {
+    background-color: #f0f0f0;
+}
+
+/* Ensure buttons align properly */
+.security-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .security-section {
+        padding: 15px;
+    }
+    
+    .password-strength-meter {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .strength-bars {
+        margin-top: 5px;
+    }
+}

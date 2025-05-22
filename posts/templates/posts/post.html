@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block css %}
+   <link rel="stylesheet" href="{% static "posts/post.css" %}">
+   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+{% endblock css %}
+
+{% block title %}{{ post_dict.name|default:"Пост" }}{% endblock title %}
+
+{% block body %}
+    <div class="container">
+        <article class="post">
+            <header class="post-header">
+                <div class="post-meta">
+                    <div class="post-meta-item">
+                        <div class="author-info">
+                            <div class="author-avatar">
+                                {% if post_dict.author.username %}
+                                    {{ post_dict.author.username|first|upper }}
+                                {% else %}
+                                    ?
+                                {% endif %}
+                            </div>
+                            <span class="author-name">
+                                {% if post_dict.author.username %}
+                                    {{ post_dict.author.username }}
+                                {% else %}
+                                    Автор неизвестен
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="meta-right">
+                        <span class="publish-date">
+                            {{ post_dict.createdAt|date:"d F, Y"|default:"Дата не указана" }}
+                        </span>
+                        <span class="read-time">5 MIN READ</span>
+                    </div>
+                </div>
+
+                <h1>{{ post_dict.name|default:"Заголовок не указан" }}</h1>
+
+                <!-- Главное изображение или заглушка -->
+                <div class="main-image-container">
+                    {% if post_dict.mainImage %}
+                        <img src="{{ post_dict.mainImage }}" alt="{{ post_dict.name }}" class="main-image">
+                    {% else %}
+                        <div class="image-placeholder">
+                            📰 Page not loaded
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Статистика поста -->
+                <div class="post-stats">
+                    <div class="stat-item like-button" 
+                         {% if is_authenticated %}
+                         data-post-id="{{ post_dict.id }}"
+                         data-csrftoken="{{ csrf_token }}"
+                         {% endif %}>
+                        <span class="material-icons" id="like-icon">
+                            {% if like_status.isLiked %}favorite{% else %}favorite_border{% endif %}
+                        </span>
+                        <span id="like-count">{{ post_dict.likes|default:0 }}</span>
+                        {% if not is_authenticated %}
+                            <span class="auth-required" style="display: none;">Войдите для лайка</span>
+                        {% endif %}
+                    </div>
+                    <div class="stat-item">
+                        <span class="material-icons">visibility</span>
+                        <span>{{ post_dict.views|default:0 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="material-icons">comment</span>
+                        <span>{{ post_dict.comments|length|default:0 }}</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Содержимое поста -->
+            <div class="post-content">
+                {% if post_dict.content %}
+                    {{ post_dict.content|linebreaks }}
+                {% else %}
+                    <p>Содержимое поста не найдено.</p>
+                {% endif %}
+            </div>
+
+            <!-- Дополнительные изображения (если есть) -->
+            {% if post_dict.images %}
+                <div class="image-gallery">
+                    {% for image in post_dict.images %}
+                        <img src="{{ image }}" alt="Изображение" class="gallery-image">
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Теги (если есть) -->
+            {% if post_dict.tags %}
+                <div class="tags-container">
+                    <div class="tags-list">
+                        {% for tag in post_dict.tags %}
+                            <span class="tag">{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Секция комментариев -->
+            <section class="comments-section">
+                <div class="comments-header-container">
+                    <h3 class="comments-header">
+                        <span class="material-icons">chat_bubble_outline</span>
+                        Comments
+                        <span class="comments-count">({{ comments|length|default:0 }})</span>
+                    </h3>
+                </div>
+
+                <!-- Форма добавления комментария -->
+                <div class="comment-form-container">
+                    {% if is_authenticated %}
+                        <!-- Форма для авторизованных пользователей -->
+                        <div class="comment-form">
+                            <div class="comment-author-info">
+                                <div class="comment-author-avatar">
+                                    {{ user_data.username|first|upper }}
+                                </div>
+                                <span class="comment-author-name">{{ user_data.username }}</span>
+                            </div>
+                            <form class="comment-input-form" action="#" method="post">
+                                {% csrf_token %}
+                                <div class="comment-input-container">
+                                    <textarea 
+                                        name="text" 
+                                        placeholder="Хотите прокомментировать?" 
+                                        class="comment-textarea"
+                                        rows="3"
+                                        required
+                                    ></textarea>
+                                    <div class="comment-actions">
+                                        <button type="submit" class="comment-submit-btn">
+                                            <span class="material-icons">send</span>
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    {% else %}
+                        <!-- Блок для неавторизованных пользователей -->
+                        <div class="auth-required-comment">
+                            <div class="auth-icon">
+                                <span class="material-icons">login</span>
+                            </div>
+                            <div class="auth-message">
+                                <h4>Please log in to add a comment</h4>
+                                <p>Join the conversation by sharing your thoughts</p>
+                                <a href="{% url 'login' %}" class="login-link">
+                                    <span class="material-icons">account_circle</span>
+                                    Log In
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Список комментариев -->
+                <div class="comments-list">
+                    {% if comments %}
+                        {% for comment in comments %}
+                            <div class="comment" data-comment-id="{{ comment.id }}">
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <div class="comment-author">
+                                            <div class="comment-avatar">
+                                                {% if comment.author.username %}
+                                                    {{ comment.author.username|first|upper }}
+                                                {% else %}
+                                                    A
+                                                {% endif %}
+                                            </div>
+                                            <div class="comment-meta">
+                                                <span class="comment-author-name">
+                                                    {% if comment.author.username %}
+                                                        {{ comment.author.username }}
+                                                    {% else %}
+                                                        Аноним
+                                                    {% endif %}
+                                                </span>
+                                                <span class="comment-date">
+                                                    {% if comment.createdAt %}
+                                                        {{ comment.createdAt|date:"d M, Y в H:i" }}
+                                                    {% else %}
+                                                        недавно
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="comment-actions-menu">
+                                            <button class="comment-menu-btn">
+                                                <span class="material-icons">more_vert</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="comment-text">
+                                        {{ comment.text|default:"Комментарий не найден" }}
+                                    </div>
+                                    <div class="comment-footer">
+                                        <button class="comment-action-btn like-comment" data-comment-id="{{ comment.id }}">
+                                            <span class="material-icons {% if comment.isLiked %}liked{% endif %}">
+                                                {% if comment.isLiked %}thumb_up{% else %}thumb_up{% endif %}
+                                            </span>
+                                            <span>{{ comment.likes|default:0 }}</span>
+                                        </button>
+                                        <button class="comment-action-btn reply-comment">
+                                            <span class="material-icons">reply</span>
+                                            Ответить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-comments">
+                            <div class="no-comments-icon">
+                                <span class="material-icons">chat_bubble_outline</span>
+                            </div>
+                            <h4>No comments yet</h4>
+                            <p>Be first!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        </article>
+    </div>
+
+    <!-- JavaScript для лайков и комментариев -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const likeButton = document.querySelector('.like-button');
+            const likeIcon = document.getElementById('like-icon');
+            const likeCount = document.getElementById('like-count');
+            const commentForm = document.querySelector('.comment-input-form');
+            const commentTextarea = document.querySelector('.comment-textarea');
+            const commentList = document.querySelector('.comments-list');
+            const commentButtons = document.querySelectorAll('.comment-action-btn.like-comment');
+
+            // Function to fetch CSRF token
+            async function fetchCsrfToken() {
+                try {
+                    const response = await fetch('/get-csrf-token/', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Failed to fetch CSRF token');
+                    return data.csrfToken;
+                } catch (error) {
+                    console.error('Error fetching CSRF token:', error);
+                    return null;
+                }
+            }
+
+            // Function to show notification
+            function showNotification(message, type = 'error') {
+                const notification = document.createElement('div');
+                notification.textContent = message;
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${type === 'success' ? '#10b981' : '#ef4444'};
+                    color: white;
+                    padding: 10px 15px;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 3000);
+            }
+
+            // Post like functionality
+            if (likeButton && likeButton.dataset.postId) {
+                let isLiked = likeIcon.textContent.trim() === 'favorite';
+                let likesCount = parseInt(likeCount.textContent) || 0;
+                let isLoading = false;
+
+                likeButton.addEventListener('click', async function() {
+                    if (isLoading) return;
+                    const postId = this.dataset.postId;
+                    if (!postId) {
+                        console.error('Post ID not found');
+                        return;
+                    }
+
+                    isLoading = true;
+                    likeButton.style.opacity = '0.6';
+
+                    try {
+                        const response = await fetch(`/post/${postId}/like/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'Failed to toggle like');
+
+                        if (data.success) {
+                            isLiked = data.isLiked !== undefined ? data.isLiked : !isLiked;
+                            likeIcon.textContent = isLiked ? 'favorite' : 'favorite_border';
+                            likeIcon.style.color = isLiked ? '#ef4444' : '';
+                            likesCount = data.likesCount !== undefined ? data.likesCount : (isLiked ? likesCount + 1 : Math.max(0, likesCount - 1));
+                            likeCount.textContent = likesCount;
+
+                            likeButton.style.transform = 'scale(1.1)';
+                            setTimeout(() => likeButton.style.transform = 'scale(1)', 150);
+                        }
+                    } catch (error) {
+                        console.error('Error toggling like:', error);
+                        showNotification('Ошибка при обновлении лайка');
+                    } finally {
+                        isLoading = false;
+                        likeButton.style.opacity = '1';
+                    }
+                });
+
+                likeButton.addEventListener('mouseenter', function() {
+                    if (!isLoading) likeIcon.style.transform = 'scale(1.1)';
+                });
+
+                likeButton.addEventListener('mouseleave', function() {
+                    likeIcon.style.transform = 'scale(1)';
+                });
+            } else if (likeButton) {
+                likeButton.addEventListener('click', function() {
+                    const authMsg = this.querySelector('.auth-required');
+                    if (authMsg) {
+                        authMsg.style.display = 'inline';
+                        setTimeout(() => authMsg.style.display = 'none', 2000);
+                    }
+                });
+            }
+
+            // Comment form submission
+            if (commentForm) {
+                commentTextarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = this.scrollHeight + 'px';
+                });
+
+                commentTextarea.addEventListener('focus', function() {
+                    this.parentElement.classList.add('focused');
+                });
+
+                commentTextarea.addEventListener('blur', function() {
+                    if (!this.value.trim()) {
+                        this.parentElement.classList.remove('focused');
+                    }
+                });
+
+                commentForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const content = commentTextarea.value.trim();
+                    if (!content) {
+                        showNotification('Комментарий не может быть пустым');
+                        return;
+                    }
+
+                    const postId = likeButton.dataset.postId;
+                    const submitButton = commentForm.querySelector('.comment-submit-btn');
+                    submitButton.disabled = true;
+                    submitButton.style.opacity = '0.6';
+
+                    try {
+                        const csrfToken = await fetchCsrfToken();
+                        if (!csrfToken) throw new Error('CSRF token not available');
+
+                        const response = await fetch(`/post/${postId}/comment/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ text: content })
+                        });
+
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'Failed to post comment');
+
+                        // Add new comment to the DOM
+                        const comment = document.createElement('div');
+                        comment.className = 'comment';
+                        comment.style.animation = 'slideInUp 0.4s ease-out';
+                        comment.dataset.commentId = data.id;
+                        comment.innerHTML = `
+                            <div class="comment-content">
+                                <div class="comment-header">
+                                    <div class="comment-author">
+                                        <div class="comment-avatar">${data.author.username[0].toUpperCase()}</div>
+                                        <div class="comment-meta">
+                                            <span class="comment-author-name">${data.author.username}</span>
+                                            <span class="comment-date">${new Date(data.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                    </div>
+                                    <div class="comment-actions-menu">
+                                        <button class="comment-menu-btn">
+                                            <span class="material-icons">more_vert</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="comment-text">${data.text}</div>
+                                <div class="comment-footer">
+                                    <button class="comment-action-btn like-comment" data-comment-id="${data.id}">
+                                        <span class="material-icons">thumb_up</span>
+                                        <span>0</span>
+                                    </button>
+                                    <button class="comment-action-btn reply-comment">
+                                        <span class="material-icons">reply</span>
+                                        Ответить
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        commentList.prepend(comment);
+                        commentTextarea.value = '';
+                        commentTextarea.style.height = 'auto';
+                        commentForm.parentElement.classList.remove('focused');
+
+                        // Update comments count
+                        const commentsCount = document.querySelector('.comments-count');
+                        const currentCount = parseInt(commentsCount.textContent.match(/\d+/)[0]) || 0;
+                        commentsCount.textContent = `(${currentCount + 1})`;
+
+                        // Remove "no comments" message if present
+                        const noComments = commentList.querySelector('.no-comments');
+                        if (noComments) noComments.remove();
+
+                        showNotification('Комментарий успешно добавлен', 'success');
+
+                        // Re-attach like comment listeners
+                        attachLikeCommentListeners();
+                    } catch (error) {
+                        console.error('Error posting comment:', error);
+                        showNotification(error.message || 'Ошибка при добавлении комментария');
+                    } finally {
+                        submitButton.disabled = false;
+                        submitButton.style.opacity = '1';
+                    }
+                });
+            }
+
+            // Comment like functionality
+            function attachLikeCommentListeners() {
+                document.querySelectorAll('.comment-action-btn.like-comment').forEach(button => {
+                    button.removeEventListener('click', handleCommentLike); // Prevent duplicate listeners
+                    button.addEventListener('click', handleCommentLike);
+                });
+            }
+
+            async function handleCommentLike(e) {
+                e.preventDefault();
+                const button = this;
+                const commentId = button.dataset.commentId;
+                if (!commentId) {
+                    console.error('Comment ID not found');
+                    return;
+                }
+
+                const likeCountSpan = button.querySelector('span:last-child');
+                let likesCount = parseInt(likeCountSpan.textContent) || 0;
+                const likeIcon = button.querySelector('.material-icons');
+                const isLiked = likeIcon.classList.contains('liked');
+                button.disabled = true;
+                button.style.opacity = '0.6';
+
+                try {
+                    const csrfToken = await fetchCsrfToken();
+                    if (!csrfToken) throw new Error('CSRF token not available');
+
+                    const response = await fetch(`/comment/${commentId}/like/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Failed to toggle comment like');
+
+                    likesCount = data.likes !== undefined ? data.likes : (isLiked ? likesCount - 1 : likesCount + 1);
+                    likeCountSpan.textContent = likesCount;
+                    likeIcon.classList.toggle('liked', data.isLiked);
+                    likeIcon.textContent = data.isLiked ? 'thumb_up' : 'thumb_up';
+                    likeIcon.style.color = data.isLiked ? '#ef4444' : '';
+
+                    button.style.transform = 'scale(1.1)';
+                    setTimeout(() => button.style.transform = 'scale(1)', 150);
+                } catch (error) {
+                    console.error('Error toggling comment like:', error);
+                    showNotification(error.message || 'Ошибка при обновлении лайка комментария');
+                } finally {
+                    button.disabled = false;
+                    button.style.opacity = '1';
+                }
+            }
+
+            attachLikeCommentListeners();
+        });
+    </script>
+{% endblock body %}

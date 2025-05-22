@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'posts/register.css' %}">
+{% endblock css %}
+
+{% block body %}
+    <div class="main-content">
+        <div class="register-section">
+            <div class="register-container">
+                <h1 class="register-title">Спасибо за регистрацию!</h1>
+                <p class="features-text">
+                    Письмо с подтверждением отправлено на {{ email }}. 
+                    Пожалуйста, проверьте вашу почту и перейдите по ссылке для завершения регистрации.
+                </p>
+                <p class="features-text">
+                    Не получили письмо? Проверьте папку "Спам" или <a href="#" class="login-link">отправьте письмо повторно</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+{% endblock body %}

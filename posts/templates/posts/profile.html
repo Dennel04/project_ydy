@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Profile{% endblock title %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'posts/profile.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+{% endblock css %}
+
+{% block body %}
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1 class="profile-title">Profile</h1>
+        </div>
+        
+        <div class="profile-content">
+            <div class="profile-sidebar">
+                <div class="profile-avatar">
+                    {% if user_data.image %}
+                        <img src="{{ user_data.image }}" alt="User Profile" id="avatar-img">
+                    {% else %}
+                        <div class="avatar-placeholder" id="avatar-placeholder">
+                            {{ user_data.username|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="profile-username" id="username-display">{{ user_data.username }}</div>
+                <div class="profile-login">@{{ user_data.login }}</div>
+                
+                <nav class="profile-nav">
+                    <ul class="profile-menu">
+                        <li class="profile-menu-item active">
+                            <a href="{% url 'profile' %}">Profile</a>
+                        </li>
+                        <li class="profile-menu-item">
+                            <a href="#">My posts</a>
+                        </li>
+                        <li class="profile-menu-item">
+                            <a href="{% url 'profile_security' %}">Security</a>
+                        </li>
+                        <li class="profile-menu-item">
+                            <a href="{% url 'logout' %}" class="logout-link">Log out</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="profile-form-container">
+                <div class="profile-info">
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <button id="edit-profile-btn" class="edit-btn">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <div class="form-sublabel">Your name appears on your Profile page, as your byline, and in your responses.</div>
+                        <div class="form-text" id="name-display">{{ user_data.username }}</div>
+                        <input type="text" id="name-input" class="form-control" value="{{ user_data.username }}" style="display: none;">
+                    </div>
+                    
+                    <div class="form-divider"></div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <div class="form-sublabel">Your @username for identifying your profile (cannot be changed)</div>
+                        <div class="form-text" id="username-form-display">@{{ user_data.login }}</div>
+                    </div>
+                    
+                    <div class="form-divider"></div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Bio</label>
+                        <div class="form-sublabel">Tell us about yourself</div>
+                        <div class="form-text" id="bio-display">{{ user_data.description }}</div>
+                        <textarea id="bio-input" class="form-control" maxlength="200" style="display: none;">{{ user_data.description }}</textarea>
+                        <div class="bio-counter" id="bio-counter">Characters: {{ user_data.description|length }} / 200</div>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 20px; display: none;" id="save-changes-container">
+                        <button id="cancel-changes-btn" class="cancel-btn">Cancel</button>
+                        <button id="save-changes-btn" class="save-btn">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const editBtn = document.getElementById('edit-profile-btn');
+            const saveBtn = document.getElementById('save-changes-btn');
+            const cancelBtn = document.getElementById('cancel-changes-btn');
+            const saveContainer = document.getElementById('save-changes-container');
+            
+            const fields = [
+                { display: 'name-display', input: 'name-input' },
+                { display: 'bio-display', input: 'bio-input' }
+            ];
+
+            // Store initial values
+            const initialValues = {
+                username: document.getElementById('name-input').value,
+                bio: document.getElementById('bio-input').value
+            };
+
+            // Update bio character counter
+            const bioInput = document.getElementById('bio-input');
+            const bioCounter = document.getElementById('bio-counter');
+            bioInput.addEventListener('input', function() {
+                bioCounter.textContent = `Characters: ${this.value.length} / 200`;
+            });
+
+            // Toggle edit mode
+            editBtn.addEventListener('click', function() {
+                fields.forEach(field => {
+                    document.getElementById(field.display).style.display = 'none';
+                    document.getElementById(field.input).style.display = 'block';
+                });
+                saveContainer.style.display = 'block';
+                editBtn.style.display = 'none';
+            });
+
+            // Cancel changes
+            cancelBtn.addEventListener('click', function() {
+                fields.forEach(field => {
+                    const input = document.getElementById(field.input);
+                    const display = document.getElementById(field.display);
+                    input.value = initialValues[field.input.replace('-input', '')];
+                    display.textContent = field.input === 'bio-input' ? initialValues.bio : initialValues.username;
+                    display.style.display = 'block';
+                    input.style.display = 'none';
+                });
+                saveContainer.style.display = 'none';
+                editBtn.style.display = 'block';
+            });
+
+            // Save changes
+            saveBtn.addEventListener('click', async function() {
+                const newUsername = document.getElementById('name-input').value;
+                const newBio = document.getElementById('bio-input').value;
+
+                // Check if there are any changes
+                if (newUsername === initialValues.username && newBio === initialValues.bio) {
+                    // No changes, revert to display mode
+                    fields.forEach(field => {
+                        const input = document.getElementById(field.input);
+                        const display = document.getElementById(field.display);
+                        display.style.display = 'block';
+                        input.style.display = 'none';
+                    });
+                    saveContainer.style.display = 'none';
+                    editBtn.style.display = 'block';
+                    return;
+                }
+
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+                
+                const formData = new FormData();
+                formData.append('username', newUsername); 
+                formData.append('description', newBio);
+
+                try {
+                    // Get CSRF token
+                    const csrfResponse = await fetch('{% url "get_csrf_token" %}');
+                    if (!csrfResponse.ok) {
+                        throw new Error('Failed to fetch CSRF token');
+                    }
+                    const csrfData = await csrfResponse.json();
+                    const csrfToken = csrfData.csrfToken;
+
+                    console.log('Sending update with data:', {
+                        username: newUsername,
+                        description: newBio
+                    });
+
+                    // Update profile data
+                    const profileResponse = await fetch('{% url "update_profile" %}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-Token': csrfToken,
+                            // Do not set Content-Type header when using FormData
+                        },
+                        body: formData
+                    });
+
+                    // For debugging - log the response text regardless of status
+                    const responseText = await profileResponse.text();
+                    console.log('API response text:', responseText);
+                    
+                    // Parse JSON response (re-parse the text we already got)
+                    let profileData;
+                    try {
+                        profileData = JSON.parse(responseText);
+                    } catch (err) {
+                        console.error('Failed to parse response as JSON:', err);
+                        throw new Error('Invalid response format from server');
+                    }
+
+                    if (!profileResponse.ok) {
+                        throw new Error(profileData.error || `Server error: ${profileResponse.status}`);
+                    }
+                    
+                    // Update with data from API response
+                    if (profileData && profileData.user) {
+                        // Update all displayed values with data from API
+                        if (profileData.user.username) {
+                            document.getElementById('name-display').textContent = profileData.user.username;
+                            document.getElementById('username-display').textContent = profileData.user.username;
+                            document.getElementById('name-input').value = profileData.user.username;
+                            initialValues.username = profileData.user.username;
+                            
+                            // Also update the header username if it exists
+                            const headerUsername = document.querySelector('.header .username');
+                            if (headerUsername) {
+                                headerUsername.textContent = profileData.user.username;
+                            }
+                        }
+                        
+                        if (profileData.user.description !== undefined) {
+                            document.getElementById('bio-display').textContent = profileData.user.description;
+                            document.getElementById('bio-input').value = profileData.user.description;
+                            initialValues.bio = profileData.user.description;
+                        }
+                        
+                        console.log('Profile updated successfully with data:', profileData.user);
+                    } else {
+                        // Fallback to entered values if API doesn't return user data
+                        document.getElementById('name-display').textContent = newUsername;
+                        document.getElementById('username-display').textContent = newUsername;
+                        document.getElementById('bio-display').textContent = newBio;
+                        initialValues.username = newUsername;
+                        initialValues.bio = newBio;
+                        
+                        // Also update header if it exists
+                        const headerUsername = document.querySelector('.header .username');
+                        if (headerUsername) {
+                            headerUsername.textContent = newUsername;
+                        }
+                        
+                        console.log('Profile updated with form values (no API data returned)');
+                    }
+
+                    // Switch to display mode
+                    fields.forEach(field => {
+                        const input = document.getElementById(field.input);
+                        const display = document.getElementById(field.display);
+                        display.style.display = 'block';
+                        input.style.display = 'none';
+                    });
+                    
+                    saveContainer.style.display = 'none';
+                    editBtn.style.display = 'block';
+                } catch (error) {
+                    console.error('Profile update error:', error);
+                    alert('Error updating profile: ' + error.message);
+                } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Changes';
+                }
+            });
+        });
+    </script>
+{% endblock body %}
