@@ -16,10 +16,12 @@
                     <div class="post-meta-item">
                         <div class="author-info">
                             <div class="author-avatar">
-                                {% if post_dict.author.username %}
-                                    {{ post_dict.author.username|first|upper }}
+                                {% if post_dict.author.image %}
+                                    <img src="{{ post_dict.author.image }}" alt="{{ post_dict.author.username }}'s avatar">
                                 {% else %}
-                                    ?
+                                    <div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                        {{ post_dict.author.username|slice:":2"|upper }}
+                                    </div>
                                 {% endif %}
                             </div>
                             <span class="author-name">
@@ -36,6 +38,11 @@
                             {{ post_dict.createdAt|date:"d F, Y"|default:"Дата не указана" }}
                         </span>
                         <span class="read-time">5 MIN READ</span>
+                        {% if is_authenticated and user_data.id == post_dict.author.id %}
+                            <button class="delete-post-btn" data-post-id="{{ post_dict.id }}" data-csrftoken="{{ csrf_token }}">
+                                <span class="material-icons" style="color: #ef4444;">delete</span>
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -124,7 +131,13 @@
                         <div class="comment-form">
                             <div class="comment-author-info">
                                 <div class="comment-author-avatar">
-                                    {{ user_data.username|first|upper }}
+                                    {% if user_data.image %}
+                                        <img src="{{ user_data.image }}" alt="{{ user_data.username }}'s avatar">
+                                    {% else %}
+                                        <div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                            {{ user_data.username|slice:":2"|upper }}
+                                        </div>
+                                    {% endif %}
                                 </div>
                                 <span class="comment-author-name">{{ user_data.username }}</span>
                             </div>
@@ -133,7 +146,7 @@
                                 <div class="comment-input-container">
                                     <textarea 
                                         name="text" 
-                                        placeholder="Хотите прокомментировать?" 
+                                        placeholder="Want to comment?" 
                                         class="comment-textarea"
                                         rows="3"
                                         required
@@ -174,10 +187,12 @@
                                     <div class="comment-header">
                                         <div class="comment-author">
                                             <div class="comment-avatar">
-                                                {% if comment.author.username %}
-                                                    {{ comment.author.username|first|upper }}
+                                                {% if comment.author.image %}
+                                                    <img src="{{ comment.author.image }}" alt="{{ comment.author.username }}'s avatar">
                                                 {% else %}
-                                                    A
+                                                    <div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                                        {{ comment.author.username|slice:":2"|upper }}
+                                                    </div>
                                                 {% endif %}
                                             </div>
                                             <div class="comment-meta">
@@ -235,7 +250,7 @@
         </article>
     </div>
 
-    <!-- JavaScript для лайков и комментариев -->
+    <!-- JavaScript для лайков, комментариев и удаления поста -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const likeButton = document.querySelector('.like-button');
@@ -245,6 +260,7 @@
             const commentTextarea = document.querySelector('.comment-textarea');
             const commentList = document.querySelector('.comments-list');
             const commentButtons = document.querySelectorAll('.comment-action-btn.like-comment');
+            const deletePostButton = document.querySelector('.delete-post-btn');
 
             // Function to fetch CSRF token
             async function fetchCsrfToken() {
@@ -350,6 +366,50 @@
                 });
             }
 
+            // Delete post functionality
+            if (deletePostButton) {
+                deletePostButton.addEventListener('click', async function() {
+                    const postId = this.dataset.postId;
+                    const csrfToken = this.dataset.csrftoken;
+
+                    if (!postId || !csrfToken) {
+                        showNotification('Ошибка: ID поста или CSRF-токен отсутствует');
+                        return;
+                    }
+
+                    // Показываем подтверждение перед удалением
+                    if (!confirm('Вы уверены, что хотите удалить этот пост?')) {
+                        return;
+                    }
+
+                    try {
+                        const authToken = localStorage.getItem('authToken') || '';
+                        const response = await fetch(`/post/${postId}/delete/`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken,
+                                'Authorization': `Bearer ${authToken}`,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'Ошибка при удалении поста');
+
+                        showNotification('Пост успешно удален', 'success');
+                        // Перенаправляем на главную страницу после небольшой задержки
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Ошибка при удалении поста:', error);
+                        showNotification(error.message || 'Ошибка при удалении поста');
+                    }
+                });
+            }
+
             // Comment form submission
             if (commentForm) {
                 commentTextarea.addEventListener('input', function() {
@@ -407,7 +467,13 @@
                             <div class="comment-content">
                                 <div class="comment-header">
                                     <div class="comment-author">
-                                        <div class="comment-avatar">${data.author.username[0].toUpperCase()}</div>
+                                        <div class="comment-avatar">
+                                            ${data.author.image ? 
+                                                `<img src="${data.author.image}" alt="${data.author.username}'s avatar">` : 
+                                                `<div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                                    ${data.author.username.slice(0, 2).toUpperCase()}
+                                                </div>`}
+                                        </div>
                                         <div class="comment-meta">
                                             <span class="comment-author-name">${data.author.username}</span>
                                             <span class="comment-date">${new Date(data.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>

@@ -29,12 +29,42 @@ body {
     margin-bottom: 20px;
 }
 .logo {
-    color: white;
-    font-weight: bold;
-    background-color: #3949ab;
-    padding: 10px 15px;
-    border-radius: 8px;
-    display: inline-block;
+    width: 50px;
+    height: 50px;
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.logo:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+.logo::before {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(45deg, #fff 0%, #e3f2fd 100%);
+    border-radius: 50%;
+    top: 8px;
+    left: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.logo::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #3949ab 0%, #1a237e 100%);
+    border-radius: 4px;
+    bottom: 8px;
+    right: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 .nav-item {
     width: 50px;
@@ -80,6 +110,9 @@ body {
     background-color: rgba(255, 255, 255, 0.2);
     color: white;
 }
+.search-input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
 .search-icon {
     position: absolute;
     left: 15px;
@@ -96,16 +129,24 @@ body {
     border-radius: 5px;
     font-weight: bold;
     cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
 }
 .btn-outline {
     background-color: transparent;
     border: 1px solid white;
     color: white;
 }
+.btn-outline:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
 .btn-filled {
     background-color: #3949ab;
     border: none;
     color: white;
+}
+.btn-filled:hover {
+    background-color: #303f9f;
 }
 /* Icons for sidebar */
 .home-icon, .search-nav-icon, .chat-icon, .add-icon {
@@ -113,7 +154,6 @@ body {
     height: 24px;
     margin: 15px 0;
 }
-
 /* User profile styling */
 .user-profile-link {
     text-decoration: none;

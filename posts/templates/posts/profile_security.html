@@ -18,8 +18,8 @@
         <div class="profile-content">
             <div class="profile-sidebar">
                 <div class="profile-avatar">
-                    {% if user_data.avatar %}
-                        <img src="{{ user_data.avatar }}" alt="User Profile" id="avatar-img">
+                    {% if user_data.image %}
+                        <img src="{{ user_data.image }}" alt="User Profile" id="avatar-img">
                     {% else %}
                         <div class="avatar-placeholder" id="avatar-placeholder">
                             {{ user_data.username|slice:":1"|upper }}

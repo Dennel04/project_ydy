@@ -21,8 +21,7 @@ def get_common_headers(request):
     """Return minimal headers for API requests"""
     return {
         "User-Agent": request.META.get('HTTP_USER_AGENT', 'Django App'),
-        "Accept": "application/json",
-        "Content-Type": "application/json"
+        "Accept": "application/json"  # Этот заголовок допустим, так как он указывает ожидаемый формат ответа
     }
 
 def fetch_csrf_token(session, request):
@@ -72,33 +71,38 @@ def get_tag_ids(session, tag_names, headers):
         logger.error(f"Error fetching tags: {e}")
         return [], tag_names
 
-def fetch_user_data(session, request, headers):
-    """Fetch fresh user data from the API"""
+def fetch_user_data(session, request, headers, user_id=None):
+    """Fetch user data by ID or current user profile from the API"""
     auth_token = request.session.get('auth_token')
-    if not auth_token:
-        logger.error("No auth token found in session")
-        return None
-    
     fetch_headers = headers.copy()
-    fetch_headers["Authorization"] = f"Bearer {auth_token}"
-    
+    if auth_token:
+        fetch_headers["Authorization"] = f"Bearer {auth_token}"
+
     try:
-        logger.info("Fetching user profile data from API")
-        response = session.get(
-            f"{API_URL}/users/profile",
-            headers=fetch_headers,
-            timeout=10
-        )
+        if user_id:
+            # Fetch specific user by ID
+            logger.info(f"Fetching user data for user ID {user_id} from API")
+            response = session.get(
+                f"{API_URL}/users/{user_id}",
+                headers=headers,  # No auth required for public user data
+                timeout=10
+            )
+        else:
+            # Fetch current user profile
+            logger.info("Fetching current user profile data from API")
+            response = session.get(
+                f"{API_URL}/users/profile",
+                headers=fetch_headers,  # Requires auth
+                timeout=10
+            )
         response.raise_for_status()
-        
         user_data = response.json()
-        if 'user' in user_data:
+        if not user_id and 'user' in user_data:
             user_data = user_data.get('user', {})
-        
-        logger.info(f"Fetched user data successfully: {user_data}")
+        logger.info(f"Fetched user data: {user_data}")
         return user_data
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching user data: {e}")
+        logger.error(f"Error fetching user data (ID: {user_id or 'profile'}): {e}")
         if hasattr(e, 'response') and e.response:
             try:
                 error_data = e.response.json()
@@ -113,10 +117,45 @@ def home(request):
     saved_cookies = request.session.get('requests_session_cookies', {})
     for name, value in saved_cookies.items():
         session.cookies.set(name, value)
+    
     try:
+        # Получаем посты
         response = session.get(f"{API_URL}/posts", headers=headers, timeout=10)
         response.raise_for_status()
         posts = response.json()
+        
+        # Кэш для данных пользователей
+        user_cache = {}
+        
+        # Для каждого поста запрашиваем данные автора и обрабатываем дату
+        for post in posts:
+            author_id = post.get('author', {}).get('id')
+            if not author_id:
+                logger.warning(f"No author ID found for post {post.get('id')}")
+                post['author']['image'] = None
+                continue
+            
+            if author_id in user_cache:
+                post['author']['image'] = user_cache[author_id].get('image')
+                post['author']['username'] = user_cache[author_id].get('username', post['author'].get('username', 'Unknown'))
+            else:
+                user_data = fetch_user_data(session, request, headers, user_id=author_id)
+                if user_data:
+                    user_cache[author_id] = user_data
+                    post['author']['image'] = user_data.get('image')
+                    post['author']['username'] = user_data.get('username', post['author'].get('username', 'Unknown'))
+                else:
+                    post['author']['image'] = None
+            
+            if 'createdAt' in post:
+                try:
+                    post['createdAt'] = datetime.strptime(post['createdAt'], '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    logger.warning(f"Invalid date format for post {post.get('id')}: {post.get('createdAt')}")
+                    post['createdAt'] = None
+        
+        request.session['requests_session_cookies'] = merge_cookies(session.cookies)
+        
         return render(request, 'posts/home.html', {'posts': posts})
     except requests.exceptions.RequestException as e:
         error_msg = f"API error: {str(e)}"
@@ -142,6 +181,16 @@ def post(request, id):
         response.raise_for_status()
         post_data = response.json()
         
+        # Получение данных автора поста
+        author_id = post_data.get('author', {}).get('id')
+        if author_id:
+            author_data = fetch_user_data(session, request, headers, user_id=author_id)
+            if author_data:
+                post_data['author']['image'] = author_data.get('image')
+                post_data['author']['username'] = author_data.get('username', post_data['author'].get('username', 'Unknown'))
+            else:
+                post_data['author']['image'] = None
+        
         # Обработка даты создания поста
         if 'createdAt' in post_data:
             try:
@@ -153,6 +202,31 @@ def post(request, id):
         comments_response = session.get(f"{API_URL}/comments/post/{id}", headers=headers, timeout=10)
         comments_response.raise_for_status()
         comments_data = comments_response.json()
+
+        # Получение данных авторов комментариев
+        user_cache = {}
+        for comment in comments_data:
+            comment_author_id = comment.get('author', {}).get('id')
+            if not comment_author_id:
+                logger.warning(f"No author ID found for comment {comment.get('id')}")
+                comment['author']['image'] = None
+                continue
+            if comment_author_id in user_cache:
+                comment['author']['image'] = user_cache[comment_author_id].get('image')
+                comment['author']['username'] = user_cache[comment_author_id].get('username', comment['author'].get('username', 'Unknown'))
+            else:
+                user_data = fetch_user_data(session, request, headers, user_id=comment_author_id)
+                if user_data:
+                    user_cache[comment_author_id] = user_data
+                    comment['author']['image'] = user_data.get('image')
+                    comment['author']['username'] = user_data.get('username', comment['author'].get('username', 'Unknown'))
+                else:
+                    comment['author']['image'] = None
+            if 'createdAt' in comment:
+                try:
+                    comment['createdAt'] = datetime.strptime(comment['createdAt'], '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    comment['createdAt'] = None
 
         # Проверка статуса лайка, если пользователь авторизован
         like_status = None
@@ -179,8 +253,10 @@ def post(request, id):
             'like_status': like_status,
             'is_authenticated': request.session.get('is_authenticated', False),
             'user_data': request.session.get('user_data', {}),
-            'comments': comments_data  # Добавляем комментарии в контекст
+            'comments': comments_data
         }
+        
+        request.session['requests_session_cookies'] = merge_cookies(session.cookies)
         
         return render(request, "posts/post.html", context)
     
@@ -377,7 +453,8 @@ def create_post(request):
             error_msg = "Error creating post."
             if hasattr(e, 'response') and e.response:
                 try:
-                    error_msg = e.response.json().get('message', error_msg)
+                    error_data = e.response.json()
+                    error_msg = error_data.get('message', error_msg)
                 except ValueError:
                     error_msg = e.response.text or error_msg
             logger.error(f"Post creation error: {error_msg}")
@@ -475,6 +552,73 @@ def toggle_like(request, post_id):
             'success': False
         }, status=getattr(e.response, 'status_code', 500) if hasattr(e, 'response') else 500)
 
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_post(request, post_id):
+    """Delete a post"""
+    if not request.session.get('is_authenticated'):
+        return JsonResponse({
+            'error': 'Требуется авторизация',
+            'success': False
+        }, status=401)
+
+    session = requests.Session()
+    headers = get_common_headers(request)
+    saved_cookies = request.session.get('requests_session_cookies', {})
+    for name, value in saved_cookies.items():
+        session.cookies.set(name, value)
+
+    csrf_token = fetch_csrf_token(session, request)
+    if not csrf_token:
+        return JsonResponse({
+            'error': 'Не удалось получить CSRF-токен',
+            'success': False
+        }, status=500)
+
+    auth_token = request.session.get('auth_token')
+    if not auth_token:
+        return JsonResponse({
+            'error': 'Требуется авторизация',
+            'success': False
+        }, status=401)
+
+    delete_headers = headers.copy()
+    delete_headers["X-CSRF-Token"] = csrf_token
+    delete_headers["Authorization"] = f"Bearer {auth_token}"
+
+    try:
+        response = session.delete(
+            f"{API_URL}/posts/{post_id}",
+            headers=delete_headers,
+            timeout=10
+        )
+        response.raise_for_status()
+
+        request.session['requests_session_cookies'] = merge_cookies(session.cookies)
+        request.session['csrf_token'] = csrf_token
+        request.session.modified = True
+
+        logger.info(f"Post {post_id} deleted successfully")
+        return JsonResponse({
+            'success': True,
+            'message': 'Пост успешно удален'
+        })
+    except requests.exceptions.RequestException as e:
+        error_msg = "Ошибка при удалении поста"
+        status_code = 500
+        if hasattr(e, 'response') and e.response:
+            status_code = e.response.status_code
+            try:
+                error_data = e.response.json()
+                error_msg = error_data.get('message', error_msg)
+            except ValueError:
+                error_msg = e.response.text or error_msg
+        logger.error(f"Error deleting post {post_id}: {error_msg}")
+        return JsonResponse({
+            'error': error_msg,
+            'success': False
+        }, status=status_code)
+
 def logout(request):
     """Logout user and clear session"""
     request.session.flush()
@@ -490,7 +634,7 @@ def profile(request):
     for name, value in saved_cookies.items():
         session.cookies.set(name, value)
     
-    user_data = fetch_user_data(session, request, headers)
+    user_data = fetch_user_data(session, request, headers)  # Fetch current user profile
     logger.info(f"user_data from API: {user_data}")
     
     if not user_data:
@@ -791,7 +935,7 @@ def profile_security(request):
 
 @require_http_methods(["POST"])
 @csrf_exempt
-def create_comment(request, id):  # Изменено с post_id на id
+def create_comment(request, id):
     """Create a new comment for a post"""
     if not request.session.get('is_authenticated'):
         return JsonResponse({
@@ -834,13 +978,22 @@ def create_comment(request, id):  # Изменено с post_id на id
 
         api_data = {'text': text}
         response = session.post(
-            f"{API_URL}/comments/{id}",  # Используем id вместо post_id
+            f"{API_URL}/comments/{id}",
             json=api_data,
             headers=comment_headers,
             timeout=10
         )
         response.raise_for_status()
         comment_data = response.json()
+
+        author_id = comment_data.get('author', {}).get('id')
+        if author_id:
+            user_data = fetch_user_data(session, request, headers, user_id=author_id)
+            if user_data:
+                comment_data['author']['image'] = user_data.get('image')
+                comment_data['author']['username'] = user_data.get('username', comment_data['author'].get('username', 'Unknown'))
+            else:
+                comment_data['author']['image'] = None
 
         request.session['requests_session_cookies'] = merge_cookies(session.cookies)
         request.session['csrf_token'] = csrf_token
@@ -858,7 +1011,7 @@ def create_comment(request, id):  # Изменено с post_id на id
             status_code = e.response.status_code
             try:
                 error_data = e.response.json()
-                error_msg = error_data.get('message', error_msg)
+                error_msg = e.response.json().get('message', error_msg)
             except ValueError:
                 error_msg = e.response.text or error_msg
         logger.error(f"Error creating comment: {error_msg}")

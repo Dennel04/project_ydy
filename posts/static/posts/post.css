@@ -53,6 +53,14 @@
     color: white;
     font-size: 12px;
     font-weight: bold;
+    overflow: hidden; /* Добавлено для предотвращения выхода изображения за границы */
+}
+
+.author-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Масштабирование изображения с сохранением пропорций */
+    display: block;
 }
 
 .author-name {
@@ -320,16 +328,24 @@ h1 {
 }
 
 .comment-author-avatar {
-    width: 36px;
-    height: 36px;
+    width: 24px;
+    height: 24px;
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 16px;
+    font-size: 12px;
     font-weight: bold;
+    overflow: hidden; /* Добавлено */
+}
+
+.comment-author-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Масштабирование изображения */
+    display: block;
 }
 
 .comment-author-name {
@@ -512,17 +528,25 @@ h1 {
 }
 
 .comment-avatar {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     background: linear-gradient(135deg, #10b981, #059669);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
-    min-width: 32px;
+    min-width: 24px;
+    overflow: hidden; /* Добавлено */
+}
+
+.comment-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Масштабирование изображения */
+    display: block;
 }
 
 .comment-meta {
@@ -793,16 +817,16 @@ h1 {
     }
 
     .comment-avatar {
-        width: 28px;
-        height: 28px;
-        font-size: 12px;
-        min-width: 28px;
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+        min-width: 20px;
     }
 
     .comment-author-avatar {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
     }
 
     .comment-textarea {
@@ -844,6 +868,48 @@ h1 {
 .comment-action-btn.like-comment.liked .material-icons {
     color: #ef4444 !important;
     animation: likeHeartbeat 0.5s ease;
+}
+
+/* Стили для кнопки удаления поста */
+.delete-post-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-post-btn:hover {
+    background: #fef2f2;
+}
+
+.delete-post-btn .material-icons {
+    font-size: 18px;
+    color: #ef4444; /* Красный цвет для иконки мусорки */
+    transition: transform 0.2s ease;
+}
+
+.delete-post-btn:hover .material-icons {
+    transform: scale(1.1);
+}
+
+.delete-post-btn:active {
+    transform: scale(0.95);
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .delete-post-btn {
+        padding: 2px 6px;
+    }
+
+    .delete-post-btn .material-icons {
+        font-size: 16px;
+    }
 }
 
 /* Animation for new comments */

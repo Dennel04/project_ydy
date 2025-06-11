@@ -6,26 +6,26 @@
 {% block body %}
    <!-- Теги для фильтрации -->
    <div class="tags-container">
-                <div class="tag active">All</div>
-                <div class="tag">Nature</div>
-                <div class="tag">Games</div>
-                <div class="tag">Design</div>
-                <div class="tag">Programming</div>
-                <div class="tag">News</div>
-                <div class="tag">Education</div>
-                <div class="tag">Creativity</div>
-                <div class="tag">Entertainment</div>
-                <div class="tag">Technology</div>
+      <div class="tag active" data-tag="All">All</div>
+      <div class="tag" data-tag="Nature">Nature</div>
+      <div class="tag" data-tag="Games">Games</div>
+      <div class="tag" data-tag="Design">Design</div>
+      <div class="tag" data-tag="Programming">Programming</div>
+      <div class="tag" data-tag="News">News</div>
+      <div class="tag" data-tag="Education">Education</div>
+      <div class="tag" data-tag="Creativity">Creativity</div>
+      <div class="tag" data-tag="Entertainment">Entertainment</div>
+      <div class="tag" data-tag="Technology">Technology</div>
    </div>
    
    <!-- Популярные посты -->
    <h2 class="section-title">Popular posts</h2>
-   <div class="cards-container">
+   <div class="cards-container" id="popular-posts">
       {% for post in posts|slice:":4" %}
-         <div class="card">
+         <div class="card" data-tags="{% for tag in post.tags %}{{ tag.name }} {% endfor %}">
             <div class="card-image">
                {% if post.mainImage %}
-                  <img src="{{ post.mainImage }}" alt="{{ post.name }}">
+                  <img src="{{ post.mainImage }}" alt="{{ post.name|default:'Post' }}">
                {% else %}
                   <div style="width: 100%; height: 100%; background-color: #3949ab; display: flex; align-items: center; justify-content: center; color: white;">
                      <svg width="50" height="50" viewBox="0 0 24 24" fill="white">
@@ -34,9 +34,9 @@
                   </div>
                {% endif %}
                <div class="card-content">
-                  <div class="card-author">{{ post.author.username }}</div>
-                  <h3 class="card-title">{{ post.name }}</h3>
-                  <p class="card-subtitle">{{ post.content|truncatewords:5 }}</p>
+                  <div class="card-author">{{ post.author.username|default:"Unknown" }}</div>
+                  <h3 class="card-title">{{ post.name|default:"Untitled" }}</h3>
+                  <p class="card-subtitle">{{ post.content|truncatewords:5|default:"No content" }}</p>
                   <div class="card-meta">
                      {% if post.tags|length > 0 %}
                         <span class="card-tag">{{ post.tags.0.name }}</span>
@@ -60,12 +60,12 @@
    
    <!-- Недавние посты -->
    <h2 class="section-title">New posts</h2>
-   <div class="recent-posts">
+   <div class="recent-posts" id="recent-posts">
       {% for post in posts %}
-         <div class="recent-post">
+         <div class="recent-post" data-tags="{% for tag in post.tags %}{{ tag.name }} {% endfor %}">
             <div class="recent-post-image">
                {% if post.mainImage %}
-                  <img src="{{ post.mainImage }}" alt="{{ post.name }}">
+                  <img src="{{ post.mainImage }}" alt="{{ post.name|default:'Post' }}">
                {% else %}
                   <div style="width: 100%; height: 100%; background-color: #3949ab; display: flex; align-items: center; justify-content: center; color: white;">
                      <svg width="50" height="50" viewBox="0 0 24 24" fill="white">
@@ -77,16 +77,20 @@
             <div class="recent-post-content">
                <div class="recent-post-author">
                   <div class="author-avatar">
-                     <div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
-                        {{ post.author.username|slice:":2"|upper }}
-                     </div>
+                     {% if post.author.image %}
+                        <img src="{{ post.author.image }}" alt="{{ post.author.username|default:'Unknown' }}'s avatar">
+                     {% else %}
+                        <div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                           {{ post.author.username|slice:":2"|upper|default:"UN" }}
+                        </div>
+                     {% endif %}
                   </div>
-                  <span class="author-name">{{ post.author.username }}</span>
+                  <span class="author-name">{{ post.author.username|default:"Unknown" }}</span>
                </div>
                <h3 class="recent-post-title">
-                  <a href="{% url 'post' post.id %}">{{ post.name }}</a>
+                  <a href="{% url 'post' post.id %}">{{ post.name|default:"Untitled" }}</a>
                </h3>
-               <p class="recent-post-excerpt">{{ post.content|truncatewords:30 }}</p>
+               <p class="recent-post-excerpt">{{ post.content|truncatewords:30|default:"No content" }}</p>
                <div class="recent-post-footer">
                   <div class="recent-post-tags">
                      {% for tag in post.tags %}
@@ -110,7 +114,13 @@
                         <svg class="meta-icon" viewBox="0 0 24 24" fill="#888">
                            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
                         </svg>
-                        <span>{{ post.createAt|date:"j F, Y" }}</span>
+                        <span>
+                           {% if post.createdAt %}
+                              {{ post.createdAt|date:"j F, Y" }}
+                           {% else %}
+                              Unknown
+                           {% endif %}
+                        </span>
                      </div>
                   </div>
                </div>
@@ -120,4 +130,172 @@
          <h1>No posts available</h1>
       {% endfor %}
    </div>
+
+   <!-- JavaScript для фильтрации по тегам -->
+   <script>
+      document.addEventListener('DOMContentLoaded', function() {
+         const tags = document.querySelectorAll('.tag');
+         const popularPosts = document.getElementById('popular-posts');
+         const recentPosts = document.getElementById('recent-posts');
+         const API_URL = 'https://blog-api-wpbz.onrender.com/api';
+
+         // Функция для показа уведомления
+         function showNotification(message, type = 'error') {
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+               position: fixed;
+               top: 20px;
+               right: 20px;
+               background: ${type === 'success' ? '#10b981' : '#ef4444'};
+               color: white;
+               padding: 10px 15px;
+               border-radius: 5px;
+               font-size: 14px;
+               z-index: 1000;
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+         }
+
+         // Обработчик клика по тегу
+         tags.forEach(tag => {
+            tag.addEventListener('click', async function() {
+               tags.forEach(t => t.classList.remove('active'));
+               this.classList.add('active');
+
+               const tagName = this.dataset.tag;
+               try {
+                  const url = tagName === 'All' ? `${API_URL}/posts` : `${API_URL}/posts?tag=${encodeURIComponent(tagName)}`;
+                  const response = await fetch(url, {
+                     method: 'GET',
+                     headers: {
+                        'Content-Type': 'application/json'
+                     }
+                  });
+
+                  if (!response.ok) {
+                     const errorData = await response.text();
+                     throw new Error(`HTTP ${response.status}: ${errorData || 'Failed to fetch posts'}`);
+                  }
+
+                  const posts = await response.json();
+                  console.log('API Response:', posts); // Логирование для отладки
+
+                  popularPosts.innerHTML = '';
+                  recentPosts.innerHTML = '';
+
+                  if (!Array.isArray(posts) || posts.length === 0) {
+                     recentPosts.innerHTML = '<h1>No posts available</h1>';
+                     showNotification(`Нет постов с тегом "${tagName}"`, 'error');
+                     return;
+                  }
+
+                  // Обновление популярных постов (первые 4)
+                  posts.slice(0, 4).forEach(post => {
+                     const tags = Array.isArray(post.tags) ? post.tags.map(tag => tag.name || '').join(' ') : '';
+                     const card = `
+                        <div class="card" data-tags="${tags}">
+                           <div class="card-image">
+                              ${post.mainImage ? 
+                                 `<img src="${post.mainImage}" alt="${post.name || 'Post'}">` : 
+                                 `<div style="width: 100%; height: 100%; background-color: #3949ab; display: flex; align-items: center; justify-content: center; color: white;">
+                                    <svg width="50" height="50" viewBox="0 0 24 24" fill="white">
+                                       <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM8 15c0-1.66 1.34-3 3-3 .35 0 .69.07 1 .18V6h5v2h-3v7.03c-.02 1.64-1.35 2.97-3 2.97-1.66 0-3-1.34-3-3z"/>
+                                    </svg>
+                                 </div>`}
+                              <div class="card-content">
+                                 <div class="card-author">${post.author?.username || 'Unknown'}</div>
+                                 <h3 class="card-title">${post.name || 'Untitled'}</h3>
+                                 <p class="card-subtitle">${post.content ? post.content.split(' ').slice(0, 5).join(' ') + '...' : 'No content'}</p>
+                                 <div class="card-meta">
+                                    ${Array.isArray(post.tags) && post.tags.length > 0 ? 
+                                       `<span class="card-tag">${post.tags[0].name || 'Unknown'}</span>` : 
+                                       `<span class="card-tag">NEW</span>`}
+                                    <span class="card-time">5 MIN READ</span>
+                                 </div>
+                              </div>
+                              <div class="card-actions">
+                                 <a href="/post/${post.id || ''}">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                       <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                    </svg>
+                                 </a>
+                              </div>
+                           </div>
+                        </div>
+                     `;
+                     popularPosts.innerHTML += card;
+                  });
+
+                  // Обновление недавних постов
+                  posts.forEach(post => {
+                     const tags = Array.isArray(post.tags) ? post.tags.map(tag => tag.name || '').join(' ') : '';
+                     const createdAt = post.createdAt ? new Date(post.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Unknown';
+                     const recentPost = `
+                        <div class="recent-post" data-tags="${tags}">
+                           <div class="recent-post-image">
+                              ${post.mainImage ? 
+                                 `<img src="${post.mainImage}" alt="${post.name || 'Post'}">` : 
+                                 `<div style="width: 100%; height: 100%; background-color: #3949ab; display: flex; align-items: center; justify-content: center; color: white;">
+                                    <svg width="50" height="50" viewBox="0 0 24 24" fill="white">
+                                       <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                    </svg>
+                                 </div>`}
+                           </div>
+                           <div class="recent-post-content">
+                              <div class="recent-post-author">
+                                 <div class="author-avatar">
+                                    ${post.author?.image ? 
+                                       `<img src="${post.author.image}" alt="${post.author?.username || 'Unknown'}'s avatar">` : 
+                                       `<div style="width: 100%; height: 100%; background-color: #5c6af2; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                          ${post.author?.username ? post.author.username.slice(0, 2).toUpperCase() : 'UN'}
+                                       </div>`}
+                                 </div>
+                                 <span class="author-name">${post.author?.username || 'Unknown'}</span>
+                              </div>
+                              <h3 class="recent-post-title">
+                                 <a href="/post/${post.id || ''}">${post.name || 'Untitled'}</a>
+                              </h3>
+                              <p class="recent-post-excerpt">${post.content ? post.content.split(' ').slice(0, 30).join(' ') + '...' : 'No content'}</p>
+                              <div class="recent-post-footer">
+                                 <div class="recent-post-tags">
+                                    ${Array.isArray(post.tags) ? post.tags.map(tag => `<div class="recent-post-tag">${tag.name || 'Unknown'}</div>`).join('') : ''}
+                                 </div>
+                                 <div class="recent-post-meta">
+                                    <div class="meta-item">
+                                       <svg class="meta-icon" viewBox="0 0 24 24" fill="#888">
+                                          <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                       </svg>
+                                       <span>${post.views || 0}</span>
+                                    </div>
+                                    <div class="meta-item">
+                                       <svg class="meta-icon" viewBox="0 0 24 24" fill="#888">
+                                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                       </svg>
+                                       <span>${post.likes || 0}</span>
+                                    </div>
+                                    <div class="meta-item">
+                                       <svg class="meta-icon" viewBox="0 0 24 24" fill="#888">
+                                          <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                                       </svg>
+                                       <span>${createdAt}</span>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     `;
+                     recentPosts.innerHTML += recentPost;
+                  });
+
+                  showNotification(`Показаны посты с тегом "${tagName}"`, 'success');
+               } catch (error) {
+                  console.error('Error fetching posts:', error.message);
+                  showNotification(`Ошибка при загрузке постов: ${error.message}`);
+               }
+            });
+         });
+      });
+   </script>
 {% endblock body %}

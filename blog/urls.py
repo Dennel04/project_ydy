@@ -37,5 +37,6 @@ urlpatterns = [
     path('profile/change-email/', views.change_email, name='change_email'),
     path('check-like-status/<str:post_id>/', views.check_like_status, name='check_like_status'),
     path('post/<str:id>/comment/', views.create_comment, name='create_comment'),
-    path('comment/<str:comment_id>/like/', views.toggle_comment_like, name='toggle_comment_like')
+    path('comment/<str:comment_id>/like/', views.toggle_comment_like, name='toggle_comment_like'),
+    path('post/<str:post_id>/delete/', views.delete_post, name='delete_post'),
 ]
