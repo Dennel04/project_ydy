@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 // Общий лимитер для всех запросов API
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
-  max: 100, // макс. 100 запросов на IP в течение windowMs
+  max: 500, // макс. 100 запросов на IP в течение windowMs
   standardHeaders: true, // Возвращать информацию о лимите в заголовках `RateLimit-*`
   legacyHeaders: false, // Отключить заголовки `X-RateLimit-*`
   message: { message: 'Слишком много запросов, повторите попытку позже' }
