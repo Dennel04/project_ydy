@@ -73,7 +73,7 @@ The app will be available at `http://localhost:3000`
 - Theme persistence via local storage
 
 ### Internationalization
-- Language switching support (i18n-ready)
+- Language switching support
 - Localized UI strings
 
 ### Notifications
