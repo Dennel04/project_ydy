@@ -1,0 +1,42 @@
+:root {
+    /* Light theme (default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f3f4f6;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-tertiary: #6b7280;
+    --border-color: #e5e7eb;
+    --header-bg: linear-gradient(to right, #1a237e, #283593);
+    --sidebar-bg: linear-gradient(to bottom, #1a237e, #0d1538);
+    --card-bg: #ffffff;
+    --card-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    --input-bg: #ffffff;
+    --input-border: #e5e7eb;
+    --button-primary: #3949ab;
+    --button-primary-hover: #303f9f;
+    --button-secondary: #f3f4f6;
+    --button-secondary-hover: #e5e7eb;
+    --tag-text-color: #3949ab;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3d3d3d;
+    --text-primary: #ffffff;
+    --text-secondary: #e5e5e5;
+    --text-tertiary: #a3a3a3;
+    --border-color: #404040;
+    --header-bg: linear-gradient(to right, #0d1538, #1a237e);
+    --sidebar-bg: linear-gradient(to bottom, #0d1538, #1a237e);
+    --card-bg: #2d2d2d;
+    --card-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    --input-bg: #2d2d2d;
+    --input-border: #404040;
+    --button-primary: #3949ab;
+    --button-primary-hover: #303f9f;
+    --button-secondary: #3d3d3d;
+    --button-secondary-hover: #4d4d4d;
+    --tag-text-color: #ffffff;
+} 

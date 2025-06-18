@@ -1,0 +1,216 @@
+/* Security page specific styles */
+.security-section {
+    margin-bottom: 30px;
+    background: var(--bg-primary);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+}
+
+.security-section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.security-section-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.security-btn {
+    background-color: var(--button-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.security-btn:hover {
+    background-color: var(--button-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(67, 67, 215, 0.2);
+}
+
+/* Password strength meter */
+.password-strength-meter {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.strength-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.strength-bars {
+    display: flex;
+    gap: 5px;
+}
+
+.strength-bar {
+    width: 25px;
+    height: 8px;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.strength-bar.active {
+    background-color: var(--button-primary);
+}
+
+.strength-text {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-left: 5px;
+    font-weight: 500;
+}
+
+/* Form styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-sublabel {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 5px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background-color: var(--input-bg);
+    transition: all 0.3s ease;
+}
+
+.form-control:disabled {
+    background-color: var(--bg-tertiary);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--button-primary);
+    box-shadow: 0 0 0 3px rgba(67, 67, 215, 0.1);
+}
+
+.form-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    padding: 12px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.current-email {
+    font-weight: 500;
+    color: var(--button-primary);
+}
+
+/* Edit button */
+.edit-btn {
+    background-color: var(--button-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.edit-btn:hover {
+    background-color: var(--button-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(67, 67, 215, 0.2);
+}
+
+/* Cancel button */
+.cancel-btn {
+    background-color: var(--bg-primary);
+    color: var(--button-primary);
+    border: 1px solid var(--button-primary);
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+}
+
+.cancel-btn:hover {
+    background-color: var(--bg-secondary);
+    transform: translateY(-1px);
+}
+
+/* Error message */
+.error-message {
+    background-color: #ffebee;
+    color: #d32f2f;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border: 1px solid #ffcdd2;
+}
+
+/* Password validation styles */
+.form-control.password-mismatch {
+    border-color: #ff4d4d;
+    box-shadow: 0 0 5px rgba(255, 77, 77, 0.2);
+}
+
+.form-control.password-match {
+    border-color: #2eb82e;
+    box-shadow: 0 0 5px rgba(46, 184, 46, 0.2);
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .security-section {
+        padding: 20px;
+    }
+    
+    .password-strength-meter {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .strength-bars {
+        margin-top: 5px;
+    }
+    
+    .security-btn, .cancel-btn {
+        width: 100%;
+        margin: 5px 0;
+    }
+} 
