@@ -6,129 +6,104 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const formatResponse = require('../utils/formatResponse');
 
-// Создать комментарий (только авторизованный пользователь)
+// Create a comment for a post
 router.post('/:postId', auth, async (req, res) => {
   try {
-    const { text } = req.body;
-    
-    // Проверяем существование поста
+    const { content } = req.body;
+    if (!content || content.trim().length < 1) {
+      return res.status(400).json({ message: 'Comment content cannot be empty' });
+    }
     const post = await Post.findById(req.params.postId);
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
-    
     const comment = new Comment({
-      text,
+      post: req.params.postId,
       author: req.user.userId,
-      post: req.params.postId
+      content
     });
-    
-    const savedComment = await comment.save();
-    
-    // Добавляем комментарий в массив комментариев поста
-    post.comments.push(savedComment._id);
-    await post.save();
-    
-    // Возвращаем комментарий с данными автора
-    const populatedComment = await Comment.findById(savedComment._id)
-      .populate('author', 'username');
-    
-    res.status(201).json(formatResponse(populatedComment));
+    await comment.save();
+    res.status(201).json(formatResponse(comment));
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Ошибка при создании комментария' });
+    res.status(500).json({ message: 'Error creating comment' });
   }
 });
 
-// Получить все комментарии к посту
-router.get('/post/:postId', async (req, res) => {
+// Get all comments for a post
+router.get('/:postId', async (req, res) => {
   try {
-    const comments = await Comment.find({ post: req.params.postId })
-      .populate('author', 'username')
-      .sort({ createdAt: -1 });
-    
+    const comments = await Comment.find({ post: req.params.postId }).sort({ createdAt: 1 });
     res.json(formatResponse(comments));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении комментариев' });
+    res.status(500).json({ message: 'Error fetching comments' });
   }
 });
 
-// Удалить комментарий (только автор комментария)
+// Get comment by ID
+router.get('/comment/:id', async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+    res.json(formatResponse(comment));
+  } catch (e) {
+    res.status(500).json({ message: 'Error fetching comment' });
+  }
+});
+
+// Delete comment
 router.delete('/:id', auth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
-    
     if (!comment) {
-      return res.status(404).json({ message: 'Комментарий не найден' });
+      return res.status(404).json({ message: 'Comment not found' });
     }
-    
-    // Проверяем, что текущий пользователь - автор комментария
+    // Only author or admin can delete
     if (comment.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к удалению комментария' });
+      return res.status(403).json({ message: 'You do not have permission to delete this comment' });
     }
-    
-    // Удаляем комментарий из массива комментариев поста
-    await Post.updateOne(
-      { _id: comment.post },
-      { $pull: { comments: comment._id } }
-    );
-    
-    await Comment.deleteOne({ _id: comment._id });
-    res.json({ message: 'Комментарий успешно удалён' });
+    await comment.remove();
+    res.json({ message: 'Comment deleted successfully' });
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при удалении комментария' });
+    res.status(500).json({ message: 'Error deleting comment' });
   }
 });
 
-// Поставить/убрать лайк комментарию
+// Like/unlike comment
 router.post('/like/:id', auth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
-    
     if (!comment) {
-      return res.status(404).json({ message: 'Комментарий не найден' });
+      return res.status(404).json({ message: 'Comment not found' });
     }
-    
-    const user = await User.findById(req.user.userId);
-    
-    // Проверяем, есть ли уже лайк от этого пользователя
-    const index = user.liked_comments.findIndex(commentId => 
-      commentId.toString() === comment._id.toString()
-    );
-    
+    const userId = req.user.userId;
+    const index = comment.likes.indexOf(userId);
     if (index === -1) {
-      // Лайка нет - добавляем
-      user.liked_comments.push(comment._id);
-      comment.likes += 1;
-      await user.save();
+      comment.likes.push(userId);
       await comment.save();
-      return res.json({ message: 'Лайк добавлен', likes: comment.likes });
+      return res.json({ liked: true });
     } else {
-      // Лайк есть - удаляем
-      user.liked_comments.splice(index, 1);
-      comment.likes = Math.max(0, comment.likes - 1); // Защита от отрицательных лайков
-      await user.save();
+      comment.likes.splice(index, 1);
       await comment.save();
-      return res.json({ message: 'Лайк удален', likes: comment.likes });
+      return res.json({ liked: false });
     }
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Ошибка при обработке лайка комментария' });
+    res.status(500).json({ message: 'Error liking comment' });
   }
 });
 
-// Проверить, поставил ли пользователь лайк комментарию
+// Check if comment is liked
 router.get('/isliked/:id', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-    
-    const isLiked = user.liked_comments.some(commentId => 
-      commentId.toString() === req.params.id
-    );
-    
-    res.json({ isLiked });
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+    const isLiked = comment.likes.includes(req.user.userId);
+    res.json({ liked: isLiked });
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при проверке лайка комментария' });
+    res.status(500).json({ message: 'Error checking like status' });
   }
 });
 

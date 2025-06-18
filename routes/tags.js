@@ -4,69 +4,69 @@ const Tag = require('../models/Tag');
 const auth = require('../middleware/auth');
 const formatResponse = require('../utils/formatResponse');
 
-// Получить все теги
+// Get all tags
 router.get('/', async (req, res) => {
   try {
     const tags = await Tag.find().sort({ count: -1 });
     res.json(formatResponse(tags));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при получении тегов' });
+    res.status(500).json({ message: 'Error fetching tags' });
   }
 });
 
-// Получить тег по id
+// Get tag by id
 router.get('/:id', async (req, res) => {
   try {
     const tag = await Tag.findById(req.params.id);
     if (!tag) {
-      return res.status(404).json({ message: 'Тег не найден' });
+      return res.status(404).json({ message: 'Tag not found' });
     }
     res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при получении тега' });
+    res.status(500).json({ message: 'Error fetching tag' });
   }
 });
 
-// Получить тег по slug
+// Get tag by slug
 router.get('/slug/:slug', async (req, res) => {
   try {
     const tag = await Tag.findOne({ slug: req.params.slug });
     if (!tag) {
-      return res.status(404).json({ message: 'Тег не найден' });
+      return res.status(404).json({ message: 'Tag not found' });
     }
     res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при получении тега' });
+    res.status(500).json({ message: 'Error fetching tag' });
   }
 });
 
-// Создать новый тег (только для администратора)
+// Create a new tag (admin only)
 router.post('/', auth, async (req, res) => {
   try {
-    // Здесь должна быть проверка на права администратора
-    // TODO: добавить проверку isAdmin
+    // Admin rights check should be here
+    // TODO: add isAdmin check
     
     const { name, description } = req.body;
     
     if (!name || name.trim().length < 2) {
-      return res.status(400).json({ message: 'Название тега должно содержать минимум 2 символа' });
+      return res.status(400).json({ message: 'Tag name must be at least 2 characters long' });
     }
     
-    // Создаем slug из имени
+    // Create slug from name
     const slug = name.toLowerCase()
-      .replace(/\s+/g, '-')     // Заменяем пробелы на дефисы
-      .replace(/[^\w-]+/g, '')  // Удаляем не-слова и не-дефисы
-      .replace(/--+/g, '-')     // Заменяем несколько дефисов на один
-      .replace(/^-+/, '')       // Удаляем дефисы в начале
-      .replace(/-+$/, '');      // Удаляем дефисы в конце
+      .replace(/\s+/g, '-')     // Replace spaces with hyphens
+      .replace(/[^\w-]+/g, '')  // Remove non-word characters and non-hyphens
+      .replace(/--+/g, '-')     // Replace multiple hyphens with a single one
+      .replace(/^-+/, '')       // Remove hyphens at the start
+      .replace(/-+$/, '');      // Remove hyphens at the end
     
-    // Проверяем, нет ли уже тега с таким slug
+    // Check if tag with this slug already exists
     const existingTag = await Tag.findOne({ slug });
     if (existingTag) {
-      return res.status(400).json({ message: 'Тег с таким названием уже существует' });
+      return res.status(400).json({ message: 'A tag with this name already exists' });
     }
     
     const tag = new Tag({
@@ -80,30 +80,30 @@ router.post('/', auth, async (req, res) => {
     res.status(201).json(formatResponse(tag));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при создании тега' });
+    res.status(500).json({ message: 'Error creating tag' });
   }
 });
 
-// Обновить тег (только для администратора)
+// Update tag (admin only)
 router.put('/:id', auth, async (req, res) => {
   try {
-    // Здесь должна быть проверка на права администратора
-    // TODO: добавить проверку isAdmin
+    // Admin rights check should be here
+    // TODO: add isAdmin check
     
     const { name, description } = req.body;
     
     if (!name || name.trim().length < 2) {
-      return res.status(400).json({ message: 'Название тега должно содержать минимум 2 символа' });
+      return res.status(400).json({ message: 'Tag name must be at least 2 characters long' });
     }
     
     const tag = await Tag.findById(req.params.id);
     if (!tag) {
-      return res.status(404).json({ message: 'Тег не найден' });
+      return res.status(404).json({ message: 'Tag not found' });
     }
     
-    // Обновляем только если имя изменилось
+    // Update only if name changed
     if (tag.name !== name) {
-      // Создаем новый slug
+      // Create new slug
       const slug = name.toLowerCase()
         .replace(/\s+/g, '-')
         .replace(/[^\w-]+/g, '')
@@ -111,10 +111,10 @@ router.put('/:id', auth, async (req, res) => {
         .replace(/^-+/, '')
         .replace(/-+$/, '');
       
-      // Проверяем, не занят ли такой slug другим тегом
+      // Check if this slug is taken by another tag
       const existingTag = await Tag.findOne({ slug, _id: { $ne: req.params.id } });
       if (existingTag) {
-        return res.status(400).json({ message: 'Тег с таким названием уже существует' });
+        return res.status(400).json({ message: 'A tag with this name already exists' });
       }
       
       tag.name = name;
@@ -127,30 +127,30 @@ router.put('/:id', auth, async (req, res) => {
     res.json(formatResponse(tag));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при обновлении тега' });
+    res.status(500).json({ message: 'Error updating tag' });
   }
 });
 
-// Удалить тег (только для администратора)
+// Delete tag (admin only)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Здесь должна быть проверка на права администратора
-    // TODO: добавить проверку isAdmin
+    // Admin rights check should be here
+    // TODO: add isAdmin check
     
     const tag = await Tag.findById(req.params.id);
     if (!tag) {
-      return res.status(404).json({ message: 'Тег не найден' });
+      return res.status(404).json({ message: 'Tag not found' });
     }
     
-    // Удаляем тег
+    // Delete tag
     await tag.remove();
     
-    // TODO: Обновить все посты, которые используют этот тег
+    // TODO: Update all posts that use this tag
     
-    res.json({ message: 'Тег успешно удален' });
+    res.json({ message: 'Tag deleted successfully' });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при удалении тега' });
+    res.status(500).json({ message: 'Error deleting tag' });
   }
 });
 

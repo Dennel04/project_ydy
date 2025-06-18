@@ -12,67 +12,67 @@ const mongoose = require('mongoose');
 const formatResponse = require('../utils/formatResponse');
 const cloudinary = require('../utils/cloudinary');
 
-// Создать пост (только авторизованный пользователь)
+// Create post (only authorized user)
 router.post('/', auth, createPostUpload, async (req, res) => {
   try {
     const { name, content, isPublished } = req.body;
     let tags = req.body.tags;
     
-    // Валидация входных данных
+    // Validate input data
     if (!name || name.trim().length < 3) {
-      return res.status(400).json({ message: 'Название поста должно содержать минимум 3 символа' });
+      return res.status(400).json({ message: 'Post name must contain at least 3 characters' });
     }
     
     if (!content || content.trim().length < 10) {
-      return res.status(400).json({ message: 'Содержание поста должно содержать минимум 10 символов' });
+      return res.status(400).json({ message: 'Post content must contain at least 10 characters' });
     }
     
-    // Проверяем теги
+    // Check tags
     let tagIds = [];
     if (tags) {
-      // Если tags передан как строка, преобразуем его в массив
+      // If tags are passed as a string, convert it to an array
       if (typeof tags === 'string') {
         try {
           tags = JSON.parse(tags);
         } catch (e) {
-          // Если это одиночное значение, создаем массив из него
+          // If it's a single value, create an array from it
           tags = [tags];
         }
       }
       
-      // Получаем ID тегов и проверяем их существование
+      // Get tag IDs and check their existence
       for (const tagId of tags) {
         const tag = await Tag.findById(tagId);
         if (!tag) {
-          return res.status(400).json({ message: `Тег с ID ${tagId} не найден` });
+          return res.status(400).json({ message: `Tag with ID ${tagId} not found` });
         }
         tagIds.push(tag._id);
         
-        // Увеличиваем счетчик использования тега
+        // Increase tag usage counter
         tag.count += 1;
         await tag.save();
       }
     }
     
 
-    // Обрабатываем загруженные изображения, если они есть
+    // Process uploaded images if they exist
     let mainImageUrl = null;
     let contentImagesUrls = [];
     
-    // Если есть загруженные файлы
+    // If uploaded files exist
     if (req.files) {
-      // Если загружено главное изображение
+      // If main image is uploaded
       if (req.files.mainImage && req.files.mainImage.length > 0) {
         mainImageUrl = req.files.mainImage[0].path;
       }
       
-      // Если загружены дополнительные изображения
+      // If additional images are uploaded
       if (req.files.contentImages && req.files.contentImages.length > 0) {
         contentImagesUrls = req.files.contentImages.map(file => file.path);
       }
     }
     
-    // Если изображения переданы как URL-строки
+    // If images are passed as URL strings
     if (req.body.mainImage) {
       mainImageUrl = req.body.mainImage;
     }
@@ -81,7 +81,7 @@ router.post('/', auth, createPostUpload, async (req, res) => {
       contentImagesUrls = req.body.images;
     }
     
-    // Создаем пост
+    // Create post
 
     const post = new Post({
       name,
@@ -96,7 +96,7 @@ router.post('/', auth, createPostUpload, async (req, res) => {
     
     await post.save();
     
-    // Отправляем пост с заполненными тегами
+    // Send post with filled tags
     const populatedPost = await Post.findById(post._id)
       .populate('tags', 'name slug')
       .populate('author', 'username');
@@ -104,11 +104,11 @@ router.post('/', auth, createPostUpload, async (req, res) => {
     res.status(201).json(formatResponse(populatedPost));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при создании поста' });
+    res.status(500).json({ message: 'Error creating post' });
   }
 });
 
-// Получить все посты (доступно всем)
+// Get all posts (accessible to all)
 router.get('/', async (req, res) => {
   try {
     const posts = await Post.find()
@@ -117,11 +117,11 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(formatResponse(posts));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении постов' });
+    res.status(500).json({ message: 'Error getting posts' });
   }
 });
 
-// Получить все посты пользователя
+// Get all posts of a user
 router.get('/user/:userId', async (req, res) => {
   try {
     const posts = await Post.find({ author: req.params.userId })
@@ -130,11 +130,11 @@ router.get('/user/:userId', async (req, res) => {
     
     res.json(formatResponse(posts));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении постов пользователя' });
+    res.status(500).json({ message: 'Error getting posts of user' });
   }
 });
 
-// Получить один пост по id
+// Get one post by id
 router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -142,20 +142,20 @@ router.get('/:id', async (req, res) => {
       .populate('tags', 'name slug');
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Увеличиваем счётчик просмотров
+    // Increase view counter
     post.views += 1;
     await post.save();
     
     res.json(formatResponse(post));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении поста' });
+    res.status(500).json({ message: 'Error getting post' });
   }
 });
 
-// Редактировать пост (только автор)
+// Edit post (only author)
 router.put('/:id', auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -165,20 +165,20 @@ router.put('/:id', auth, async (req, res) => {
     const post = await Post.findById(req.params.id).session(session);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+      return res.status(403).json({ message: 'No access to edit post' });
     }
     
-    // Обновляем поля
+    // Update fields
     post.name = name || post.name;
     post.content = content || post.content;
     post.isPublished = isPublished !== undefined ? isPublished : post.isPublished;
     
-    // Обновляем изображения, если они предоставлены
+    // Update images if they are provided
     if (mainImage !== undefined) {
       post.mainImage = mainImage;
     }
@@ -187,91 +187,91 @@ router.put('/:id', auth, async (req, res) => {
       post.images = images;
     }
     
-    // Обрабатываем теги, если они предоставлены
+    // Process tags if they are provided
     if (tags && Array.isArray(tags)) {
       const oldTagIds = post.tags.map(tag => tag.toString());
       let newTagIds = [];
       
-      // Получаем ID тегов и проверяем их существование
+      // Get tag IDs and check their existence
       for (const tagId of tags) {
         const tag = await Tag.findById(tagId).session(session);
         if (!tag) {
           await session.abortTransaction();
           session.endSession();
-          return res.status(400).json({ message: `Тег с ID ${tagId} не найден` });
+          return res.status(400).json({ message: `Tag with ID ${tagId} not found` });
         }
         newTagIds.push(tag._id.toString());
         
-        // Если это новый тег для поста, увеличиваем счетчик
+        // If this is a new tag for the post, increase the counter
         if (!oldTagIds.includes(tag._id.toString())) {
           tag.count += 1;
           await tag.save({ session });
         }
       }
       
-      // Уменьшаем счетчики для удаленных тегов
+      // Decrease counters for removed tags
       for (const oldTagId of oldTagIds) {
         if (!newTagIds.includes(oldTagId)) {
           const tag = await Tag.findById(oldTagId).session(session);
           if (tag) {
-            tag.count = Math.max(0, tag.count - 1); // Не уходим в минус
+            tag.count = Math.max(0, tag.count - 1); // Don't go below zero
             await tag.save({ session });
           }
         }
       }
       
-      // Обновляем теги в посте
+      // Update tags in post
       post.tags = tags;
     }
     
     await post.save({ session });
     
-    // Фиксируем транзакцию
+    // Commit transaction
     await session.commitTransaction();
     session.endSession();
     
-    // Возвращаем обновленный пост с заполненными данными
+    // Return updated post with filled data
     const updatedPost = await Post.findById(post._id)
       .populate('tags', 'name slug')
       .populate('author', 'username');
     
     res.json(formatResponse(updatedPost));
   } catch (e) {
-    // Отменяем транзакцию в случае ошибки
+    // Rollback transaction in case of error
     await session.abortTransaction();
     session.endSession();
     
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при редактировании поста' });
+    res.status(500).json({ message: 'Error editing post' });
   }
 });
 
-// Удалить пост (только автор)
+// Delete post (only author)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к удалению поста' });
+      return res.status(403).json({ message: 'No access to delete post' });
     }
     
-    // Транзакционный подход - используем mongoose сессию
+    // Transactional approach - use mongoose session
     const session = await mongoose.startSession();
     session.startTransaction();
     
     try {
-      // Удаляем пост
+      // Delete post
       await Post.deleteOne({ _id: post._id }, { session });
       
-      // Удаляем все комментарии поста
+      // Delete all post comments
       await Comment.deleteMany({ post: post._id }, { session });
       
-      // Удаляем ссылки на пост из коллекций liked_posts и favourite у всех пользователей
+      // Remove post links from liked_posts and favourite collections of all users
       await User.updateMany(
         { $or: [
           { liked_posts: post._id },
@@ -286,62 +286,62 @@ router.delete('/:id', auth, async (req, res) => {
         { session }
       );
       
-      // Фиксируем транзакцию
+      // Commit transaction
       await session.commitTransaction();
       
-      res.json({ message: 'Пост и все связанные данные успешно удалены' });
+      res.json({ message: 'Post and all related data successfully deleted' });
     } catch (error) {
-      // Отменяем транзакцию в случае ошибки
+      // Rollback transaction in case of error
       await session.abortTransaction();
       throw error;
     } finally {
-      // Заканчиваем сессию
+      // End session
       session.endSession();
     }
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при удалении поста' });
+    res.status(500).json({ message: 'Error deleting post' });
   }
 });
 
-// Поставить/убрать лайк посту
+// Like/unlike post
 router.post('/like/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
     const user = await User.findById(req.user.userId);
     
-    // Проверяем, есть ли уже лайк от этого пользователя
+    // Check if the user has already liked the post
     const index = user.liked_posts.findIndex(postId => 
       postId.toString() === post._id.toString()
     );
     
     if (index === -1) {
-      // Лайка нет - добавляем
+      // Like not found - add
       user.liked_posts.push(post._id);
       post.likes += 1;
       await user.save();
       await post.save();
-      return res.json({ message: 'Лайк добавлен', likes: post.likes });
+      return res.json({ message: 'Like added', likes: post.likes });
     } else {
-      // Лайк есть - удаляем
+      // Like found - remove
       user.liked_posts.splice(index, 1);
-      post.likes = Math.max(0, post.likes - 1); // Защита от отрицательных лайков
+      post.likes = Math.max(0, post.likes - 1); // Protection against negative likes
       await user.save();
       await post.save();
-      return res.json({ message: 'Лайк удален', likes: post.likes });
+      return res.json({ message: 'Like removed', likes: post.likes });
     }
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при обработке лайка' });
+    res.status(500).json({ message: 'Error processing like' });
   }
 });
 
-// Проверить, поставил ли пользователь лайк посту
+// Check if user liked the post
 router.get('/isliked/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -352,44 +352,44 @@ router.get('/isliked/:id', auth, async (req, res) => {
     
     res.json({ isLiked });
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при проверке лайка' });
+    res.status(500).json({ message: 'Error checking like' });
   }
 });
 
-// Добавить/убрать пост из избранного
+// Add/remove post from favourites
 router.post('/favourite/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
     const user = await User.findById(req.user.userId);
     
-    // Проверяем, есть ли уже пост в избранном
+    // Check if the post is already in favourites
     const index = user.favourite.findIndex(postId => 
       postId.toString() === post._id.toString()
     );
     
     if (index === -1) {
-      // Поста нет в избранном - добавляем
+      // Post not in favourites - add
       user.favourite.push(post._id);
       await user.save();
-      return res.json({ message: 'Пост добавлен в избранное', inFavourite: true });
+      return res.json({ message: 'Post added to favourites', inFavourite: true });
     } else {
-      // Пост уже в избранном - удаляем
+      // Post already in favourites - remove
       user.favourite.splice(index, 1);
       await user.save();
-      return res.json({ message: 'Пост удален из избранного', inFavourite: false });
+      return res.json({ message: 'Post removed from favourites', inFavourite: false });
     }
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при обработке избранного' });
+    res.status(500).json({ message: 'Error processing favourites' });
   }
 });
 
-// Проверить, находится ли пост в избранном у пользователя
+// Check if post is in favourites of a user
 router.get('/isfavourite/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -400,11 +400,11 @@ router.get('/isfavourite/:id', auth, async (req, res) => {
     
     res.json({ isFavourite });
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при проверке избранного' });
+    res.status(500).json({ message: 'Error checking favourites' });
   }
 });
 
-// Получить все избранные посты пользователя
+// Get all favourite posts of a user
 router.get('/favourites', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).populate({
@@ -414,28 +414,28 @@ router.get('/favourites', auth, async (req, res) => {
     
     res.json(user.favourite);
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении избранных постов' });
+    res.status(500).json({ message: 'Error getting favourite posts' });
   }
 });
 
-// Поиск и фильтрация постов
+// Search and filter posts
 router.get('/search', async (req, res) => {
   try {
     const { 
-      query, // поисковый запрос
-      tag,   // фильтр по тегу
-      author,// фильтр по автору
-      sort,  // сортировка: date, views, likes
-      limit = 10,  // количество постов на странице
-      page = 1     // номер страницы
+      query, // search query
+      tag,   // tag filter
+      author,// author filter
+      sort,  // sorting: date, views, likes
+      limit = 10,  // number of posts per page
+      page = 1     // page number
     } = req.query;
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Строим фильтр
+    // Build filter
     const filter = { isPublished: true };
     
-    // Поиск по тексту
+    // Search by text
     if (query) {
       filter.$or = [
         { name: { $regex: query, $options: 'i' } },
@@ -443,18 +443,18 @@ router.get('/search', async (req, res) => {
       ];
     }
     
-    // Фильтр по тегу
+    // Tag filter
     if (tag) {
       filter.tags = tag;
     }
     
-    // Фильтр по автору
+    // Author filter
     if (author) {
       filter.author = author;
     }
     
-    // Определяем сортировку
-    let sortOption = { createdAt: -1 }; // по умолчанию - сначала новые
+    // Define sorting
+    let sortOption = { createdAt: -1 }; // default - first new
     
     if (sort === 'views') {
       sortOption = { views: -1 };
@@ -464,10 +464,10 @@ router.get('/search', async (req, res) => {
       sortOption = { createdAt: 1 };
     }
     
-    // Получаем общее количество постов
+    // Get total number of posts
     const total = await Post.countDocuments(filter);
     
-    // Получаем посты с пагинацией
+    // Get posts with pagination
     const posts = await Post.find(filter)
       .populate('author', 'username')
       .sort(sortOption)
@@ -485,87 +485,87 @@ router.get('/search', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при поиске постов' });
+    res.status(500).json({ message: 'Error searching posts' });
   }
 });
 
-// Загрузить главное изображение для поста
+// Upload main image for post
 router.post('/upload-main-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
   try {
-    // Проверяем, загружен ли файл
+    // Check if file is uploaded
     if (!req.file) {
-      return res.status(400).json({ message: 'Файл не был загружен' });
+      return res.status(400).json({ message: 'File not uploaded' });
     }
 
-    // Находим пост в базе
+    // Find post in database
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+      return res.status(403).json({ message: 'No access to edit post' });
     }
     
-    // Если у поста уже есть главное изображение, удаляем его из Cloudinary
+    // If the post already has a main image, delete it from Cloudinary
     if (post.mainImage) {
       try {
-        // Извлекаем public_id из URL
+        // Extract public_id from URL
         const publicId = post.mainImage.split('/').pop().split('.')[0];
-        // Определяем папку на основе URL
+        // Define folder based on URL
         const folder = post.mainImage.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
-        // Удаляем старое изображение
+        // Delete old image
         await cloudinary.uploader.destroy(`${folder}/${publicId}`);
       } catch (error) {
-        console.log('Ошибка при удалении старого главного изображения поста:', error);
-        // Продолжаем работу даже при ошибке удаления
+        console.log('Error deleting old main image of post:', error);
+        // Continue working even in case of error
       }
     }
     
-    // Cloudinary возвращает полный URL в req.file.path
+    // Cloudinary returns full URL in req.file.path
     const imageUrl = req.file.path;
     
-    // Сохраняем URL главного изображения в посте
+    // Save main image URL in post
     post.mainImage = imageUrl;
     await post.save();
     
     res.json({ 
-      message: 'Главное изображение успешно загружено', 
+      message: 'Main image successfully uploaded', 
 
       imageUrl
     });
   } catch (e) {
     console.error(e);
-    next(e); // Передаем ошибку глобальному обработчику
+    next(e); // Pass error to global handler
   }
 });
 
-// Загрузить дополнительное изображение для поста
+// Upload additional image for post
 router.post('/upload-content-image/:id', auth, postImageUpload.single('image'), async (req, res, next) => {
   try {
-    // Проверяем, загружен ли файл
+    // Check if file is uploaded
     if (!req.file) {
-      return res.status(400).json({ message: 'Файл не был загружен' });
+      return res.status(400).json({ message: 'File not uploaded' });
     }
 
-    // Находим пост в базе
+    // Find post in database
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+      return res.status(403).json({ message: 'No access to edit post' });
     }
     
-    // Cloudinary возвращает полный URL в req.file.path
+    // Cloudinary returns full URL in req.file.path
     const imageUrl = req.file.path;
     
-    // Добавляем URL изображения в массив
+    // Add image URL to array
     if (!post.images) {
       post.images = [];
     }
@@ -573,117 +573,117 @@ router.post('/upload-content-image/:id', auth, postImageUpload.single('image'), 
     await post.save();
     
     res.json({ 
-      message: 'Изображение контента успешно загружено', 
+      message: 'Content image successfully uploaded', 
       imageUrl
     });
   } catch (e) {
     console.error(e);
-    next(e); // Передаем ошибку глобальному обработчику
+    next(e); // Pass error to global handler
   }
 });
 
 
-// Удалить изображение из контента поста
+// Remove image from post content
 router.delete('/delete-content-image/:id', auth, async (req, res) => {
   try {
     const { imageUrl } = req.body;
     
     if (!imageUrl) {
-      return res.status(400).json({ message: 'URL изображения не указан' });
+      return res.status(400).json({ message: 'Image URL not specified' });
     }
     
-    // Находим пост в базе
+    // Find post in database
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+      return res.status(403).json({ message: 'No access to edit post' });
     }
     
-    // Проверяем, есть ли изображение в массиве
+    // Check if image exists in array
     if (!post.images || !post.images.includes(imageUrl)) {
-      return res.status(404).json({ message: 'Изображение не найдено в посте' });
+      return res.status(404).json({ message: 'Image not found in post' });
     }
     
-    // Удаляем изображение из Cloudinary
+    // Delete image from Cloudinary
     try {
-      // Извлекаем public_id из URL
+      // Extract public_id from URL
       const publicId = imageUrl.split('/').pop().split('.')[0];
-      // Определяем папку на основе URL
+      // Define folder based on URL
       const folder = imageUrl.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
-      // Удаляем изображение
+      // Delete image
       await cloudinary.uploader.destroy(`${folder}/${publicId}`);
     } catch (error) {
-      console.log('Ошибка при удалении изображения из Cloudinary:', error);
-      // Продолжаем работу даже при ошибке удаления
+      console.log('Error deleting image from Cloudinary:', error);
+      // Continue working even in case of error
     }
     
-    // Удаляем URL из массива
+    // Remove URL from array
     post.images = post.images.filter(img => img !== imageUrl);
     await post.save();
     
     res.json({ 
-      message: 'Изображение успешно удалено', 
+      message: 'Image successfully deleted', 
       images: post.images
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при удалении изображения' });
+    res.status(500).json({ message: 'Error deleting image' });
   }
 });
 
-// Удалить главное изображение поста
+// Remove main image of post
 router.delete('/delete-main-image/:id', auth, async (req, res) => {
   try {
-    // Находим пост в базе
+    // Find post in database
     const post = await Post.findById(req.params.id);
     
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Проверяем, что текущий пользователь - автор поста
+    // Check if the current user is the post author
     if (post.author.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Нет доступа к редактированию поста' });
+      return res.status(403).json({ message: 'No access to edit post' });
     }
     
-    // Проверяем, есть ли главное изображение
+    // Check if the post has a main image
     if (!post.mainImage) {
-      return res.status(400).json({ message: 'У поста нет главного изображения' });
+      return res.status(400).json({ message: 'Post has no main image' });
     }
     
-    // Удаляем изображение из Cloudinary
+    // Delete image from Cloudinary
     try {
       const publicId = post.mainImage.split('/').pop().split('.')[0];
       const folder = post.mainImage.includes('blog-post-images') ? 'blog-post-images' : 'blog-uploads';
       await cloudinary.uploader.destroy(`${folder}/${publicId}`);
     } catch (error) {
-      console.log('Ошибка при удалении главного изображения из Cloudinary:', error);
+      console.log('Error deleting main image from Cloudinary:', error);
     }
     
-    // Удаляем URL главного изображения из поста
+    // Remove main image URL from post
     post.mainImage = null;
     await post.save();
     
     res.json({ 
-      message: 'Главное изображение успешно удалено'
+      message: 'Main image successfully deleted'
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при удалении главного изображения' });
+    res.status(500).json({ message: 'Error deleting main image' });
   }
 });
 
-// Получить посты по тегу
+// Get posts by tag
 router.get('/bytag/:tagId', async (req, res) => {
   try {
     const tag = await Tag.findById(req.params.tagId);
     if (!tag) {
-      return res.status(404).json({ message: 'Тег не найден' });
+      return res.status(404).json({ message: 'Tag not found' });
     }
     
     const posts = await Post.find({ 
@@ -697,7 +697,7 @@ router.get('/bytag/:tagId', async (req, res) => {
     res.json(posts);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при получении постов по тегу' });
+    res.status(500).json({ message: 'Error getting posts by tag' });
   }
 });
 

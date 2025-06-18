@@ -7,16 +7,16 @@ const CommentSchema = new mongoose.Schema({
   likes: { type: Number, default: 0 }
 }, { timestamps: true });
 
-// Индекс для поиска комментариев к посту
+// Index for searching comments for a post
 CommentSchema.index({ post: 1 });
 
-// Индекс для поиска комментариев по автору
+// Index for searching comments by author
 CommentSchema.index({ author: 1 });
 
-// Индекс для сортировки по количеству лайков
+// Index for sorting by the number of likes
 CommentSchema.index({ likes: -1 });
 
-// Составной индекс для поиска комментариев к посту с сортировкой по дате
+// Composite index for searching comments for a post with sorting by date
 CommentSchema.index({ post: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Comment', CommentSchema); 

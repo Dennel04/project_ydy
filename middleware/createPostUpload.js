@@ -2,40 +2,40 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../utils/cloudinary');
 
-// Настройка хранилища Cloudinary для изображений постов
+// Cloudinary storage configuration for post images
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'blog-post-images', // Отдельная папка для изображений постов
+    folder: 'blog-post-images', // Separate folder for post images
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     transformation: [
-      { width: 1200, crop: "scale" }, // Масштабирование до ширины 1200px
-      { quality: "auto" },           // Автоматическая оптимизация качества
-      { fetch_format: "auto" }       // Автоматический выбор формата
+      { width: 1200, crop: "scale" }, // Scale to width 1200px
+      { quality: "auto" },           // Automatic quality optimization
+      { fetch_format: "auto" }       // Automatic format selection
     ],
     resource_type: 'auto'
   }
 });
 
-// Фильтр файлов - разрешаем только изображения
+// File filter - allow only images
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Загружать можно только изображения!'), false);
+    cb(new Error('Only images can be uploaded!'), false);
   }
 };
 
-// Настройка multer с Cloudinary и полями для изображений
+// Multer configuration with Cloudinary and fields for images
 const createPostUpload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB для изображений постов
+    fileSize: 10 * 1024 * 1024 // 10MB for post images
   }
 }).fields([
-  { name: 'mainImage', maxCount: 1 },          // Главное изображение поста
-  { name: 'contentImages', maxCount: 10 }      // Дополнительные изображения (максимум 10)
+  { name: 'mainImage', maxCount: 1 },          // Main image of the post
+  { name: 'contentImages', maxCount: 10 }      // Additional images (maximum 10)
 ]);
 
 module.exports = createPostUpload; 

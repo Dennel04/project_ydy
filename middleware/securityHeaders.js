@@ -1,17 +1,17 @@
 const helmet = require('helmet');
 
-// Настройка Helmet с расширенными параметрами
+// Helmet configuration with extended parameters
 const securityHeaders = (req, res, next) => {
-  // Для локальной разработки используем менее строгие настройки
+  // For local development, use less strict settings
   if (process.env.NODE_ENV !== 'production') {
-    // Устанавливаем базовые заголовки без строгих CSP правил
+    // Set basic headers without strict CSP rules
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     return next();
   }
 
-  // В производственном режиме используем полные настройки Helmet
+  // In production mode, use full Helmet settings
   const helmetMiddleware = helmet({
     contentSecurityPolicy: {
       directives: {
@@ -29,7 +29,7 @@ const securityHeaders = (req, res, next) => {
     noSniff: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     hsts: {
-      maxAge: 15552000, // 180 дней
+      maxAge: 15552000, // 180 days
       includeSubDomains: true
     },
     frameguard: { action: 'deny' }

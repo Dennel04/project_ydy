@@ -1,291 +1,280 @@
-# Блог API
+# Blog API
 
-REST API для блог-платформы на Node.js, Express и MongoDB.
+REST API for a blog platform built with Node.js, Express, and MongoDB.
 
-## Содержание
+## Table of Contents
 
-- [Установка](#установка)
-- [Конфигурация](#конфигурация)
-- [Запуск](#запуск)
-- [Локальное тестирование](#локальное-тестирование)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running](#running)
+- [Local Testing](#local-testing)
 - [API Endpoints](#api-endpoints)
-  - [Аутентификация](#аутентификация)
-  - [Пользователи](#пользователи)
-  - [Посты](#посты)
-  - [Комментарии](#комментарии)
-  - [Теги](#теги)
-- [Хранилище изображений](#хранилище-изображений)
+  - [Authentication](#authentication)
+  - [Users](#users)
+  - [Posts](#posts)
+  - [Comments](#comments)
+  - [Tags](#tags)
+- [Image Storage](#image-storage)
 - [Google OAuth](#google-oauth)
-- [Деплой](#деплой)
-- [Безопасность](#безопасность)
-- [Работа с изображениями в постах](#работа-с-изображениями-в-постах)
+- [Deployment](#deployment)
+- [Security](#security)
+- [Working with Images in Posts](#working-with-images-in-posts)
 
-## Установка
+## Installation
 
 ```bash
-# Клонирование репозитория
-git clone [url-репозитория]
+# Clone the repository
+git clone [repository-url]
 cd Blog/Backend
 
-# Установка зависимостей
+# Install dependencies
 npm install
 ```
 
-## Конфигурация
+## Configuration
 
-Создайте файл `.env` в корневой директории проекта со следующими переменными:
+Create a `.env` file in the root directory of the project with the following variables:
 
 ```env
-# Порт сервера (по умолчанию 5000)
+# Server port (default 5000)
 PORT=5000
 
-# URI подключения к MongoDB
+# MongoDB connection URI
 MONGO_URI=mongodb://localhost:27017/blog_db
 
-# Секретный ключ для JWT
+# Secret key for JWT
 JWT_SECRET=your_jwt_secret_key
 
-# Секретный ключ для CSRF защиты
+# Secret key for CSRF protection
 CSRF_SECRET=your_csrf_secret_key
 
-# Данные для отправки email
+# Email sending credentials
 GMAIL_USER=your_email@gmail.com
 GMAIL_PASS=your_app_password
 
-# Настройки Cloudinary для хранения изображений
+# Cloudinary settings for image storage
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Google OAuth (необязательно)
+# Google OAuth (optional)
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 FRONTEND_URL=http://localhost:3000
 ```
 
-## Запуск
+## Running
 
 ```bash
-# Инициализация предопределенных тегов
+# Initialize predefined tags
 npm run seed-tags
 
-# Миграция данных изображений в существующих постах
+# Migrate image data in existing posts
 npm run migrate-posts
 
-
-# Миграция данных изображений в существующих постах
-npm run migrate-posts
-
-# Запуск в режиме разработки
+# Start in development mode
 npm run dev
 
-# Запуск в production режиме
+# Start in production mode
 npm start
 ```
 
-## Локальное тестирование
+## Local Testing
 
-Проект включает простой тестовый клиент для локального тестирования API.
+The project includes a simple test client for local API testing.
 
-### Использование тестового клиента
+### Using the Test Client
 
-1. Откройте файл `TestClient/index.html` в браузере
-2. Введите URL вашего API: `http://localhost:5000/api` (или URL удаленного API)
-3. Нажмите кнопку "Обновить URL"
-4. Используйте интерфейс для тестирования различных API-эндпоинтов
+1. Open the `TestClient/index.html` file in your browser
+2. Enter your API URL: `http://localhost:5000/api` (or the remote API URL)
+3. Click the "Update URL" button
+4. Use the interface to test various API endpoints
 
-### Решение проблем с CORS
+### Solving CORS Issues
 
-Если вы получаете ошибки CORS при локальном тестировании:
+If you get CORS errors during local testing:
 
-1. В режиме разработки API автоматически разрешает запросы с локальных доменов
-2. Если у вас все еще возникают проблемы, попробуйте запустить тестовый клиент через простой HTTP-сервер:
+1. In development mode, the API automatically allows requests from local domains
+2. If you still have issues, try running the test client via a simple HTTP server:
    ```bash
-   # Установка простого HTTP сервера
+   # Install a simple HTTP server
    npm install -g http-server
    
-   # Запуск в папке TestClient
+   # Run in the TestClient folder
    cd TestClient
    http-server -p 8080
    ```
-   Затем откройте http://localhost:8080 в браузере
+   Then open http://localhost:8080 in your browser
 
-3. Для фронтенд-разработки рекомендуется настроить прокси в package.json:
+3. For frontend development, it is recommended to set up a proxy in package.json:
    ```json
    "proxy": "http://localhost:5000"
    ```
 
 ## API Endpoints
 
-### Аутентификация
+### Authentication
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/api/auth/register` | Регистрация нового пользователя |
-| POST | `/api/auth/login` | Авторизация пользователя |
-| GET | `/api/auth/verify-email` | Подтверждение email |
-| POST | `/api/auth/resend-verification` | Повторная отправка письма с подтверждением |
-| POST | `/api/auth/refresh-token` | Обновление токена |
-| GET | `/api/auth/google` | Авторизация через Google |
-| GET | `/api/auth/google/callback` | Callback для Google OAuth |
-| GET | `/api/csrf-token` | Получение CSRF-токена |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | User login |
+| GET | `/api/auth/verify-email` | Email verification |
+| POST | `/api/auth/resend-verification` | Resend verification email |
+| POST | `/api/auth/refresh-token` | Refresh token |
+| GET | `/api/auth/google` | Google authentication |
+| GET | `/api/auth/google/callback` | Google OAuth callback |
+| GET | `/api/csrf-token` | Get CSRF token |
 
-### Пользователи
+### Users
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| GET | `/api/users/profile` | Получение профиля текущего пользователя |
-| GET | `/api/users/:id` | Получение публичного профиля пользователя |
-| PUT | `/api/users/profile` | Обновление профиля |
-| PUT | `/api/users/change-password` | Смена пароля |
-| PUT | `/api/users/change-email` | Смена email |
-| POST | `/api/users/upload-avatar` | Загрузка аватара |
-| DELETE | `/api/users/remove-avatar` | Удаление аватара |
-| GET | `/api/users/auth-type` | Проверка типа аутентификации (email/Google) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users/profile` | Get current user's profile |
+| GET | `/api/users/:id` | Get public user profile |
+| PUT | `/api/users/profile` | Update profile |
+| PUT | `/api/users/change-password` | Change password |
+| PUT | `/api/users/change-email` | Change email |
+| POST | `/api/users/upload-avatar` | Upload avatar |
+| DELETE | `/api/users/remove-avatar` | Remove avatar |
+| GET | `/api/users/auth-type` | Check authentication type (email/Google) |
 
-### Посты
+### Posts
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| GET | `/api/posts` | Получение всех постов |
-| GET | `/api/posts/:id` | Получение поста по ID |
-| GET | `/api/posts/user/:userId` | Получение всех постов пользователя |
-| GET | `/api/posts/search` | Поиск и фильтрация постов |
-| POST | `/api/posts` | Создание нового поста |
-| PUT | `/api/posts/:id` | Редактирование поста |
-| DELETE | `/api/posts/:id` | Удаление поста |
-| POST | `/api/posts/like/:id` | Поставить/убрать лайк |
-| GET | `/api/posts/isliked/:id` | Проверить, поставлен ли лайк |
-| POST | `/api/posts/favourite/:id` | Добавить/убрать из избранного |
-| GET | `/api/posts/isfavourite/:id` | Проверить, в избранном ли пост |
-| GET | `/api/posts/favourites` | Получить все избранные посты |
-| POST | `/api/posts/upload-main-image/:id` | Загрузка главного изображения поста |
-| POST | `/api/posts/upload-content-image/:id` | Загрузка изображения в контент поста |
-| DELETE | `/api/posts/delete-main-image/:id` | Удаление главного изображения |
-| DELETE | `/api/posts/delete-content-image/:id` | Удаление изображения из контента поста |
-| POST | `/api/posts/upload-main-image/:id` | Загрузка главного изображения поста |
-| POST | `/api/posts/upload-content-image/:id` | Загрузка изображения в контент поста |
-| DELETE | `/api/posts/delete-main-image/:id` | Удаление главного изображения |
-| DELETE | `/api/posts/delete-content-image/:id` | Удаление изображения из контента поста |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/posts` | Get all posts |
+| GET | `/api/posts/:id` | Get post by ID |
+| GET | `/api/posts/user/:userId` | Get all posts by user |
+| GET | `/api/posts/search` | Search and filter posts |
+| POST | `/api/posts` | Create a new post |
+| PUT | `/api/posts/:id` | Edit post |
+| DELETE | `/api/posts/:id` | Delete post |
+| POST | `/api/posts/like/:id` | Like/unlike post |
+| GET | `/api/posts/isliked/:id` | Check if post is liked |
+| POST | `/api/posts/favourite/:id` | Add/remove from favorites |
+| GET | `/api/posts/isfavourite/:id` | Check if post is in favorites |
+| GET | `/api/posts/favourites` | Get all favorite posts |
+| POST | `/api/posts/upload-main-image/:id` | Upload main image for post |
+| POST | `/api/posts/upload-content-image/:id` | Upload content image for post |
+| DELETE | `/api/posts/delete-main-image/:id` | Delete main image |
+| DELETE | `/api/posts/delete-content-image/:id` | Delete content image from post |
+| GET | `/api/posts/bytag/:tagId` | Get posts by tag |
 
-| GET | `/api/posts/bytag/:tagId` | Получение постов по тегу |
+### Comments
 
-### Комментарии
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/comments/:postId` | Create a comment for a post |
+| GET | `/api/comments/:postId` | Get all comments for a post |
+| GET | `/api/comments/comment/:id` | Get comment by ID |
+| DELETE | `/api/comments/:id` | Delete comment |
+| POST | `/api/comments/like/:id` | Like/unlike comment |
+| GET | `/api/comments/isliked/:id` | Check if comment is liked |
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/api/comments/:postId` | Создание комментария к посту |
-| GET | `/api/comments/:postId` | Получение всех комментариев к посту |
-| GET | `/api/comments/comment/:id` | Получение комментария по ID |
-| DELETE | `/api/comments/:id` | Удаление комментария |
-| POST | `/api/comments/like/:id` | Поставить/убрать лайк комментарию |
-| GET | `/api/comments/isliked/:id` | Проверить, поставлен ли лайк комментарию |
+### Tags
 
-### Теги
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tags` | Get all tags |
+| GET | `/api/tags/:id` | Get tag by ID |
+| GET | `/api/tags/slug/:slug` | Get tag by URL slug |
+| POST | `/api/tags` | Create a new tag (admin only) |
+| PUT | `/api/tags/:id` | Update tag (admin only) |
+| DELETE | `/api/tags/:id` | Delete tag (admin only) |
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| GET | `/api/tags` | Получение всех тегов |
-| GET | `/api/tags/:id` | Получение тега по ID |
-| GET | `/api/tags/slug/:slug` | Получение тега по URL-имени (slug) |
-| POST | `/api/tags` | Создание нового тега (только для администратора) |
-| PUT | `/api/tags/:id` | Обновление тега (только для администратора) |
-| DELETE | `/api/tags/:id` | Удаление тега (только для администратора) |
+## Image Storage
 
-## Хранилище изображений
+The API uses Cloudinary to store uploaded images (user avatars and post images).
 
-API использует Cloudinary для хранения загружаемых изображений (аватары пользователей и изображения к постам).
+### Features
 
-### Функциональность
+- Automatic image optimization
+- Size limit (up to 5MB for avatars, up to 10MB for post images)
+- Supported formats: jpg, jpeg, png, gif, webp
+- Automatic conversion to optimal format
+- Automatic deletion of old images when updating
+- Separate folders for different image types: "blog-avatars", "blog-post-images"
+- Automatic resizing for different devices
 
-- Автоматическая оптимизация изображений
-- Ограничение по размеру (до 5MB для аватаров, до 10MB для изображений к постам)
-- Поддержка форматов: jpg, jpeg, png, gif, webp
-- Автоматическая конвертация изображений в оптимальный формат
-- Автоматическое удаление старых изображений при обновлении
-- Разные папки для разных типов изображений: "blog-avatars", "blog-post-images"
-- Автоматическое изменение размера изображений для адаптации к различным устройствам
-- Автоматическое изменение размера изображений для адаптации к различным устройствам
+### Setup
 
-
-### Настройка
-
-Для работы с Cloudinary необходимо создать аккаунт на [cloudinary.com](https://cloudinary.com) и получить:
+To use Cloudinary, create an account at [cloudinary.com](https://cloudinary.com) and get:
 - Cloud Name
 - API Key
 - API Secret
 
-Эти значения должны быть указаны в файле `.env` как описано в разделе [Конфигурация](#конфигурация).
+These values should be set in the `.env` file as described in the [Configuration](#configuration) section.
 
 ## Google OAuth
 
-API поддерживает аутентификацию через Google OAuth. Подробная инструкция по настройке находится в файле [README_GOOGLE_AUTH.md](./README_GOOGLE_AUTH.md).
+The API supports authentication via Google OAuth. Detailed setup instructions are in [README_GOOGLE_AUTH.md](./README_GOOGLE_AUTH.md).
 
-## Деплой
+## Deployment
 
-Инструкция по деплою API на Render.com находится в файле [deploy.md](./deploy.md).
+Instructions for deploying the API to Render.com are in [deploy.md](./deploy.md).
 
-## Безопасность
+## Security
 
-API реализует несколько уровней защиты:
+The API implements several layers of protection:
 
-1. **Аутентификация с помощью JWT**
-   - Токены хранятся как в localStorage, так и в защищенных HTTP-only куки
-   - Механизм обновления токенов
+1. **JWT Authentication**
+   - Tokens are stored in both localStorage and secure HTTP-only cookies
+   - Token refresh mechanism
 
-2. **CSRF Защита**
+2. **CSRF Protection**
    - Double Submit Cookie Pattern
-   - Требуется получение CSRF-токена перед выполнением мутирующих операций (POST, PUT, DELETE)
-   - Получение токена: `GET /api/csrf-token`
+   - CSRF token required for mutating operations (POST, PUT, DELETE)
+   - Get token: `GET /api/csrf-token`
 
-3. **Ограничение запросов (Rate Limiting)**
-   - 100 запросов в 15-минутный период для каждого IP-адреса
-   - Защита от брутфорс атак на маршруты авторизации
+3. **Rate Limiting**
+   - 100 requests per 15-minute window per IP address
+   - Protection against brute-force attacks on authentication routes
 
-4. **Безопасные заголовки (Helmet)**
+4. **Secure Headers (Helmet)**
    - Content Security Policy (CSP)
    - XSS Protection
-   - Защита от снифинга MIME-типов
+   - MIME type sniffing protection
    - Strict Transport Security (HSTS)
-   - Frameguard для защиты от clickjacking
+   - Frameguard for clickjacking protection
 
-5. **Безопасность паролей**
-   - Хеширование с использованием bcrypt
-   - Временная блокировка аккаунта после нескольких неудачных попыток входа
-   - Проверка силы пароля
+5. **Password Security**
+   - Hashing with bcrypt
+   - Temporary account lockout after several failed login attempts
+   - Password strength validation
 
-> **Примечание:** В режиме разработки некоторые меры безопасности ослаблены для упрощения тестирования. В продакшн-режиме все защитные механизмы активны. 
+> **Note:** In development mode, some security measures are relaxed for easier testing. In production, all protection mechanisms are active.
 
-## Форматирование ответов API
+## API Response Formatting
 
-API автоматически форматирует все ответы для обеспечения совместимости с различными фронтенд-фреймворками:
+The API automatically formats all responses for compatibility with various frontend frameworks:
 
-### MongoDB ID формат
+### MongoDB ID Format
 
-- Стандартный формат MongoDB `_id` автоматически преобразуется в формат `id` (без нижнего подчеркивания)
-- Это обеспечивает лучшую совместимость с Django и другими фреймворками
+- The standard MongoDB `_id` is automatically converted to `id` (without underscore)
+- This ensures better compatibility with Django and other frameworks
 
-### Форматирование дат
+### Date Formatting
 
-- Даты (createdAt, updatedAt и др.) преобразуются из формата ISO в более читаемый формат:
+- Dates (createdAt, updatedAt, etc.) are converted from ISO format to a more readable format:
   ```
-  С: "2023-06-15T12:30:45.123Z"
-  На: "2023-06-15 12:30:45"
+  From: "2023-06-15T12:30:45.123Z"
+  To:   "2023-06-15 12:30:45"
   ```
 
-### Техническая реализация
+### Technical Implementation
 
-Форматирование реализовано через:
-- Middleware `responseFormatter` который автоматически применяется ко всем ответам API
-- Утилиту `formatResponse` для ручного форматирования при необходимости
+Formatting is implemented via:
+- The `responseFormatter` middleware, which is automatically applied to all API responses
+- The `formatResponse` utility for manual formatting if needed
 
-### Пример ответа API:
+### Example API Response:
 
-До форматирования:
+Before formatting:
 ```json
 {
   "_id": "64a1e2b3c5d6e7f8g9h0i1j2",
-  "name": "Пример поста",
+  "name": "Sample post",
   "author": {
     "_id": "64a1e2b3c5d6e7f8g9h0i1j3",
     "username": "user123"
@@ -295,11 +284,11 @@ API автоматически форматирует все ответы для
 }
 ```
 
-После форматирования:
+After formatting:
 ```json
 {
   "id": "64a1e2b3c5d6e7f8g9h0i1j2",
-  "name": "Пример поста",
+  "name": "Sample post",
   "author": {
     "id": "64a1e2b3c5d6e7f8g9h0i1j3",
     "username": "user123"
@@ -309,13 +298,13 @@ API автоматически форматирует все ответы для
 }
 ```
 
-## Безопасность API
+## API Security
 
-### Санитизация данных пользователя
+### User Data Sanitization
 
-Для защиты чувствительных данных используется функция `sanitizeUser`, которая фильтрует приватные и чувствительные поля перед отправкой клиенту:
+To protect sensitive data, the `sanitizeUser` function filters out private and sensitive fields before sending to the client:
 
-- **Чувствительные поля** (всегда исключаются):
+- **Sensitive fields** (always excluded):
   - password
   - passwordResetToken
   - passwordResetExpires
@@ -324,106 +313,105 @@ API автоматически форматирует все ответы для
   - googleId
   - __v
 
-- **Приватные поля** (доступны только самому пользователю):
-  - логин
+- **Private fields** (available only to the user):
+  - login
   - email
-  - верификация email
-  - список постов
-  - лайки/избранное
-  - даты создания/обновления
+  - email verification
+  - list of posts
+  - likes/favorites
+  - creation/update dates
 
-- **Публичные поля** (доступны всем):
+- **Public fields** (available to everyone):
   - id
-  - имя пользователя
-  - описание
-  - аватар
+  - username
+  - description
+  - avatar
 
-Режимы работы `sanitizeUser`:
-1. `{ publicView: false }` (по умолчанию) - возвращает приватные и публичные поля
-2. `{ publicView: true }` - возвращает только публичные поля
-3. `{ includeFields: ['field1', 'field2'] }` - добавляет указанные поля
+`santizeUser` modes:
+1. `{ publicView: false }` (default) - returns private and public fields
+2. `{ publicView: true }` - returns only public fields
+3. `{ includeFields: ['field1', 'field2'] }` - adds specified fields
 
-Функция преобразует `_id` в `id` для удобства клиентской стороны и работает с mongoose документами.
+The function converts `_id` to `id` for client convenience and works with mongoose documents.
 
-### Тестирование
+### Testing
 
-Для проверки функциональности санитизации используется тестовый сценарий `tests/sanitizeUser.test.js`. 
+To test sanitization functionality, use the test scenario `tests/sanitizeUser.test.js`.
 
-### Подтверждение Email и управление неподтвержденными аккаунтами
+### Email Verification and Unverified Account Management
 
-API реализует систему подтверждения email для повышения безопасности и борьбы с фиктивными регистрациями:
+The API implements an email verification system to enhance security and prevent fake registrations:
 
-#### Процесс регистрации с подтверждением
+#### Registration with Verification Process
 
-1. Пользователь регистрируется, указывая email
-2. На указанный email отправляется письмо с ссылкой для подтверждения
-3. При переходе по ссылке аккаунт активируется
-4. Неподтвержденные аккаунты не могут войти в систему
+1. User registers with an email
+2. A verification email is sent to the provided address
+3. The account is activated after following the link
+4. Unverified accounts cannot log in
 
-#### Автоматическая очистка неподтвержденных аккаунтов
+#### Automatic Cleanup of Unverified Accounts
 
-- Неподтвержденные аккаунты имеют срок действия 48 часов
-- По истечении этого срока они автоматически удаляются:
-  - При попытке регистрации с таким же логином/email
-  - При запуске скрипта очистки (`npm run cleanup-users`)
+- Unverified accounts have a 48-hour lifetime
+- After this period, they are automatically deleted:
+  - When trying to register with the same login/email
+  - When running the cleanup script (`npm run cleanup-users`)
 
-#### Повторная отправка подтверждения
+#### Resending Verification
 
-- API поддерживает повторную отправку письма с подтверждением
+- The API supports resending the verification email
 - Endpoint: `POST /api/auth/resend-verification`
-- Требуемые данные: `email` неподтвержденного аккаунта
-- При повторной отправке срок действия аккаунта продлевается на 48 часов
+- Required data: `email` of the unverified account
+- When resent, the account's lifetime is extended by 48 hours
 
-#### Настройка регулярной очистки
+#### Setting Up Regular Cleanup
 
-Для автоматической очистки просроченных аккаунтов на сервере можно настроить cron-задачу:
+To automatically clean up expired accounts on the server, you can set up a cron job:
 
 ```bash
-# Пример cron-задачи для ежедневной очистки в полночь
+# Example cron job for daily cleanup at midnight
 0 0 * * * cd /path/to/backend && npm run cleanup-users >> /var/log/cleanup-users.log 2>&1
 ```
 
-## Работа с изображениями в постах
+## Working with Images in Posts
 
-В блоге реализована поддержка двух типов изображений:
+The blog supports two types of images:
 
-1. **Главное изображение (mainImage)** - отображается вверху поста после заголовка
-2. **Изображения контента (images)** - массив изображений, встроенных в текст поста
+1. **Main image (mainImage)** - displayed at the top of the post after the title
+2. **Content images (images)** - an array of images embedded in the post content
 
-### API для работы с изображениями
+### API for Working with Images
 
-
-#### Создание поста с изображениями
+#### Creating a Post with Images
 ```
 POST /api/posts
 ```
-API поддерживает создание поста с загрузкой изображений в одном запросе через multipart/form-data.
+The API supports creating a post with image uploads in a single request via multipart/form-data.
 
-**Параметры:**
-- `name` - название поста
-- `content` - содержимое поста
-- `tags` - массив или строка с ID тегов
-- `isPublished` - статус публикации (опционально)
-- `mainImage` - файл главного изображения (опционально)
-- `contentImages` - файлы изображений для контента (опционально, можно загрузить несколько)
+**Parameters:**
+- `name` - post title
+- `content` - post content
+- `tags` - array or string with tag IDs
+- `isPublished` - publication status (optional)
+- `mainImage` - main image file (optional)
+- `contentImages` - content image files (optional, multiple allowed)
 
-**Пример использования формы:**
+**Example form usage:**
 ```html
 <form method="post" enctype="multipart/form-data">
-  <input type="text" name="name" value="Название поста">
-  <textarea name="content">Содержимое поста</textarea>
+  <input type="text" name="name" value="Post title">
+  <textarea name="content">Post content</textarea>
   <input type="file" name="mainImage" accept="image/*">
   <input type="file" name="contentImages" accept="image/*" multiple>
-  <button type="submit">Создать пост</button>
+  <button type="submit">Create post</button>
 </form>
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
   "id": "60d21b4667d0d8992e610c85",
-  "name": "Название поста",
-  "content": "Содержимое поста...",
+  "name": "Post title",
+  "content": "Post content...",
   "mainImage": "https://res.cloudinary.com/...",
   "images": ["https://res.cloudinary.com/...", "..."],
   "author": {
@@ -433,52 +421,50 @@ API поддерживает создание поста с загрузкой �
 }
 ```
 
-#### Загрузка главного изображения
+#### Uploading Main Image
 ```
 POST /api/posts/upload-main-image/:id
 ```
+Uploads the main image for an existing post. If the post already has a main image, it will be replaced.
 
-Загружает главное изображение для существующего поста. Если у поста уже есть главное изображение, оно будет заменено.
+**Parameters:**
+- `:id` - post ID
+- `image` - image file (multipart/form-data)
 
-
-**Параметры:**
-- `:id` - ID поста
-- `image` - файл изображения (multipart/form-data)
-
-**Ответ:**
+**Response:**
 ```json
 {
-  "message": "Главное изображение успешно загружено",
+  "message": "Main image uploaded successfully",
   "imageUrl": "https://res.cloudinary.com/..."
 }
 ```
 
-#### Загрузка изображения для контента
+#### Uploading Content Image
 ```
 POST /api/posts/upload-content-image/:id
 ```
-Загружает изображение и добавляет его в массив изображений поста.
+Uploads an image and adds it to the post's images array.
 
-**Параметры:**
-- `:id` - ID поста
-- `image` - файл изображения (multipart/form-data)
+**Parameters:**
+- `:id` - post ID
+- `image` - image file (multipart/form-data)
 
-**Ответ:**
+**Response:**
 ```json
 {
-  "message": "Изображение контента успешно загружено",
+  "message": "Content image uploaded successfully",
   "imageUrl": "https://res.cloudinary.com/..."
 }
 ```
 
-#### Удаление изображения из контента
+#### Deleting Content Image
 ```
 DELETE /api/posts/delete-content-image/:id
 ```
-Удаляет изображение из массива изображений поста.
+Removes an image from the post's images array.
 
-**Параметры:**
-- `:id` - ID поста
+**Parameters:**
+- `:id` - post ID
 - Body:
 ```json
 {
@@ -486,38 +472,37 @@ DELETE /api/posts/delete-content-image/:id
 }
 ```
 
-**Ответ:**
+**Response:**
 ```json
 {
-  "message": "Изображение успешно удалено",
+  "message": "Image deleted successfully",
   "images": ["https://res.cloudinary.com/...", "..."]
 }
 ```
 
-#### Удаление главного изображения
+#### Deleting Main Image
 ```
 DELETE /api/posts/delete-main-image/:id
 ```
-Удаляет главное изображение поста.
 
-**Параметры:**
-- `:id` - ID поста
+**Parameters:**
+- `:id` - post ID
 
-**Ответ:**
+**Response:**
 ```json
 {
-  "message": "Главное изображение успешно удалено"
+  "message": "Main image deleted successfully"
 }
 ```
 
-### Использование изображений в посте
+### Using Images in Posts
 
-При создании или редактировании поста можно указать главное изображение и массив изображений контента:
+When creating or editing a post, you can specify the main image and content images:
 
 ```json
 {
-  "name": "Название поста",
-  "content": "Содержимое поста... Текст с изображениями...",
+  "name": "Post title",
+  "content": "Post content... Text with images...",
   "tags": ["id_tag1", "id_tag2"],
   "mainImage": "https://res.cloudinary.com/...",
   "images": [
@@ -527,9 +512,9 @@ DELETE /api/posts/delete-main-image/:id
 }
 ```
 
-**Примечания:**
-- Поля `mainImage` и `images` являются опциональными
-- Можно создавать чисто текстовые посты без изображений
-- Изображения контента должны быть расположены в тексте в том же порядке, в котором они указаны в массиве `images`
-- Для создания поста с загрузкой изображений используйте multipart/form-data
-- Для обновления существующего поста с изображениями рекомендуется использовать отдельные эндпоинты загрузки 
+**Notes:**
+- `mainImage` and `images` fields are optional
+- You can create text-only posts without images
+- Content images must be placed in the text in the same order as they are in the `images` array
+- Use multipart/form-data for creating a post with image uploads
+- For updating an existing post with images, it is recommended to use separate upload endpoints 

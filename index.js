@@ -13,7 +13,7 @@ const { csrfProtection, csrfToken, getNewCsrfToken } = require('./middleware/csr
 const responseFormatter = require('./middleware/responseFormatter');
 require('dotenv').config();
 
-// Проверка наличия необходимых переменных окружения
+// Check for required environment variables
 const requiredEnvVars = [
   'JWT_SECRET', 
   'MONGO_URI', 
@@ -26,29 +26,29 @@ const requiredEnvVars = [
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-  console.error('Ошибка: Отсутствуют следующие переменные окружения:');
+  console.error('Error: The following environment variables are missing:');
   console.error(missingEnvVars.join(', '));
-  process.exit(1); // Завершаем процесс с ошибкой
+  process.exit(1); // Exit with error
 }
 
 const app = express();
 
-// Настройка для работы за прокси (например, для rate-limiter)
+// Trust proxy settings (e.g., for rate-limiter)
 app.set('trust proxy', 1);
 
-// Настройка CORS
+// CORS configuration
 const corsOptions = {
   origin: function(origin, callback) {
-    // В производственном режиме не разрешаем запросы без origin
+    // In production, do not allow requests without origin
     if (!origin && process.env.NODE_ENV === 'production') {
-      return callback(new Error('Не разрешено политикой CORS'), false);
+      return callback(new Error('Not allowed by CORS policy'), false);
     }
-    // Разрешаем запросы без origin в режиме разработки
+    // Allow requests without origin in development
     if (!origin && process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
-    // Список разрешенных источников
+    // List of allowed origins
     let allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5500',
@@ -58,9 +58,8 @@ const corsOptions = {
       'https://blog-api-wpbz.onrender.com'  
     ];
     
-    // Если указан CORS_ORIGIN, добавляем его значения в список разрешенных
+    // If CORS_ORIGIN is set, add its values to the allowed list
     if (process.env.CORS_ORIGIN) {
-      // Разбиваем строку по запятым и добавляем в список
       const corsOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
       allowedOrigins = [...new Set([...allowedOrigins, ...corsOrigins])];
     }
@@ -68,7 +67,7 @@ const corsOptions = {
     console.log(`CORS request from: ${origin}`);
     console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
     
-    // Разрешаем null только для разработки
+    // Allow null only for development
     if (process.env.NODE_ENV !== 'production' && origin === 'null') {
       return callback(null, true);
     }
@@ -76,34 +75,34 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Не разрешено политикой CORS'));
+      callback(new Error('Not allowed by CORS policy'));
     }
   },
-  credentials: true, // Разрешаем отправку куков и аутентификационных заголовков
+  credentials: true, // Allow cookies and auth headers
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 };
 app.use(cors(corsOptions));
 
-// Безопасные заголовки
+// Security headers
 app.use(securityHeaders);
 
 // Middleware
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev')); // Логирование настраиваем в зависимости от окружения
-app.use(express.json({ limit: '1mb' })); // Ограничиваем размер JSON
-app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Ограничиваем размер данных формы
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev')); // Logging based on environment
+app.use(express.json({ limit: '1mb' })); // Limit JSON size
+app.use(express.urlencoded({ extended: true, limit: '1mb' })); // Limit form data size
 
-// Добавляем сжатие для production
+// Add compression for production
 if (process.env.NODE_ENV === 'production') {
   const compression = require('compression');
   app.use(compression());
 }
 
-// Cookie parser для работы с cookies
+// Cookie parser for working with cookies
 app.use(cookieParser());
 
-// Настройка сессий для работы с CSRF
+// Session configuration for CSRF
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'super-secret-session-key',
   resave: false,
@@ -115,12 +114,12 @@ const sessionConfig = {
   }
 };
 
-// В production используем MongoDB для хранения сессий
+// In production, use MongoDB for session storage
 if (process.env.NODE_ENV === 'production') {
   const MongoStore = require('connect-mongo');
   sessionConfig.store = MongoStore.create({
     mongoUrl: process.env.MONGO_URI,
-    ttl: 14 * 24 * 60 * 60, // 14 дней
+    ttl: 14 * 24 * 60 * 60, // 14 days
     crypto: {
       secret: process.env.SESSION_SECRET || 'mongo-session-secret'
     },
@@ -130,26 +129,26 @@ if (process.env.NODE_ENV === 'production') {
 
 app.use(session(sessionConfig));
 
-// CSRF защита
+// CSRF protection
 app.use(csrfToken);
 app.use(csrfProtection);
 
-// Лимитирование запросов
+// Rate limiting
 app.use('/api/', apiLimiter);
 
-// Форматирование ответов API - преобразование _id в id и форматирование дат
+// API response formatting - convert _id to id and format dates
 app.use('/api/', responseFormatter);
 
-// Инициализируем Passport
+// Initialize Passport
 app.use(passport.initialize());
 
-// Настраиваем папку для загруженных файлов
-// В production используем папку из переменной окружения или '/tmp/uploads'
+// Set up upload directory
+// In production, use directory from env or '/tmp/uploads'
 const uploadDir = process.env.NODE_ENV === 'production' 
   ? process.env.UPLOAD_DIR || '/tmp/uploads' 
   : 'uploads';
 
-// Создаем папку, если она не существует
+// Create directory if it doesn't exist
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -159,8 +158,8 @@ app.use('/uploads', express.static(uploadDir));
 const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGO_URI, {
-  connectTimeoutMS: 30000, // увеличенный таймаут
-  socketTimeoutMS: 30000    // увеличенный таймаут сокета
+  connectTimeoutMS: 30000, // increased timeout
+  socketTimeoutMS: 30000    // increased socket timeout
 })
 .then(() => console.log('MongoDB connected'))
 .catch((err) => {
@@ -173,11 +172,11 @@ mongoose.connect(process.env.MONGO_URI, {
   }
   
   if (err.name === 'MongoNetworkError') {
-    console.error('Возможно, проблема с сетевым подключением или правилами брандмауэра');
+    console.error('Possible network connection or firewall issue');
   } else if (err.name === 'MongoServerSelectionError') {
-    console.error('Не удалось подключиться к серверу MongoDB. Проверьте URI и доступность сервера');
+    console.error('Could not connect to MongoDB server. Check URI and server availability');
   } else if (err.message && err.message.includes('Authentication failed')) {
-    console.error('Ошибка аутентификации. Проверьте имя пользователя и пароль');
+    console.error('Authentication error. Check username and password');
   }
 });
 
@@ -198,52 +197,52 @@ app.use('/api/tags', tagsRoutes);
 
 const errorHandler = require('./middleware/error');
 
-// Обработка ошибок должна быть после всех маршрутов
+// Error handling must be after all routes
 app.use(errorHandler);
 
 app.get('/', (req, res) => {
   res.send('API is running');
 });
 
-// Создаем специальный маршрут для CSRF токена
+// Special route for CSRF token
 app.get('/api/csrf-token', (req, res) => {
   const csrfToken = getNewCsrfToken(req, res);
   res.json({ csrfToken });
 });
 
-// Тестовые маршруты доступны только вне production
+// Test routes available only outside production
 if (process.env.NODE_ENV !== 'production') {
-  // Маршрут для проверки CORS
+  // Route to check CORS
   app.get('/api/cors-test', (req, res) => {
     res.json({ 
-      message: 'CORS настроен правильно!',
-      origin: req.headers.origin || 'Неизвестный источник',
+      message: 'CORS is configured correctly!',
+      origin: req.headers.origin || 'Unknown origin',
       time: new Date().toISOString()
     });
   });
 
-  // Тестовый маршрут для проверки форматирования
+  // Test route for response formatting
   app.get('/api/format-test', (req, res) => {
     const mongoose = require('mongoose');
     const now = new Date();
     const testObject = {
       _id: new mongoose.Types.ObjectId(),
-      name: 'Тестовый объект',
+      name: 'Test object',
       nested: {
         _id: new mongoose.Types.ObjectId(),
-        value: 'Вложенное значение'
+        value: 'Nested value'
       },
       createdAt: now,
       updatedAt: now,
       items: [
         {
           _id: new mongoose.Types.ObjectId(),
-          name: 'Элемент 1',
+          name: 'Item 1',
           timestamp: now
         },
         {
           _id: new mongoose.Types.ObjectId(),
-          name: 'Элемент 2',
+          name: 'Item 2',
           timestamp: now
         }
       ]
@@ -253,16 +252,16 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Обработка ошибок 404
+// 404 error handler
 app.use((req, res, next) => {
-  res.status(404).json({ message: 'Не найдено' });
+  res.status(404).json({ message: 'Not found' });
 });
 
-// Глобальный обработчик ошибок
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Внутренняя ошибка сервера';
+  const message = err.message || 'Internal server error';
   res.status(statusCode).json({ message });
 });
 

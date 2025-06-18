@@ -9,30 +9,30 @@ const PostSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   isPublished: { type: Boolean, default: true },
-  mainImage: { type: String }, // Главное изображение поста
-  images: [{ type: String }],  // Массив URL встроенных изображений
+  mainImage: { type: String }, // Main image of the post
+  images: [{ type: String }],  // Array of URL embedded images
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } });
 
-// Добавляем индексы для оптимизации запросов
-// Индекс для поиска по автору
+// Add indexes for optimization queries
+// Index for searching by author
 PostSchema.index({ author: 1 });
 
-// Индекс для поиска опубликованных постов
+// Index for searching published posts
 PostSchema.index({ isPublished: 1 });
 
-// Индекс для текстового поиска по названию и содержимому
+// Index for text search by name and content
 PostSchema.index({ name: 'text', content: 'text' });
 
-// Индекс для сортировки по дате создания
+// Index for sorting by creation date
 PostSchema.index({ createdAt: -1 });
 
-// Индекс для сортировки по просмотрам
+// Index for sorting by views
 PostSchema.index({ views: -1 });
 
-// Индекс для сортировки по лайкам
+// Index for sorting by likes
 PostSchema.index({ likes: -1 });
 
-// Составной индекс для поиска постов по тегам и проверки, опубликован ли пост
+// Composite index for searching posts by tags and checking if the post is published
 PostSchema.index({ tags: 1, isPublished: 1 });
 
 module.exports = mongoose.model('Post', PostSchema); 

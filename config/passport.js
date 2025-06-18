@@ -16,7 +16,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Стратегия Google OAuth
+// Google OAuth strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -27,11 +27,11 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // Проверяем, существует ли уже пользователь с таким Google ID
+        // Check if a user with this Google ID already exists
         let user = await User.findOne({ email: profile.emails[0].value });
         
         if (user) {
-          // Если пользователь существует, обновляем данные, если нужно
+          // If user exists, update data if needed
           if (!user.googleId) {
             user.googleId = profile.id;
             await user.save();
@@ -39,19 +39,19 @@ passport.use(
           return done(null, user);
         }
         
-        // Если пользователя нет, создаем нового
-        // Генерируем случайный пароль для совместимости с обычной авторизацией
+        // If user does not exist, create a new one
+        // Generate a random password for compatibility with regular auth
         const randomPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
         
-        // Создаем нового пользователя
+        // Create a new user
         const newUser = new User({
           googleId: profile.id,
-          login: `google_${profile.id}`, // Уникальный логин
+          login: `google_${profile.id}`, // Unique login
           email: profile.emails[0].value,
           username: profile.displayName || profile.emails[0].value.split('@')[0],
           password: hashedPassword,
-          isEmailVerified: true // Email уже подтвержден Google
+          isEmailVerified: true // Email already verified by Google
         });
         
         await newUser.save();

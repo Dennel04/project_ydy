@@ -1,6 +1,6 @@
 /**
- * Расширенный middleware для обработки и оптимизации изображений
- * перед загрузкой в Cloudinary
+ * Extended middleware for processing and optimizing images
+ * before uploading to Cloudinary
  */
 
 const multer = require('multer');
@@ -10,56 +10,56 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 
-// Создаем временную папку для изображений
+// Create a temporary folder for images
 const tmpDir = path.join(process.cwd(), 'tmp');
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
 
-// Базовые настройки локального хранилища для предварительной обработки
+// Base settings for local storage for preliminary processing
 const tmpStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, tmpDir);
   },
   filename: function (req, file, cb) {
-    // Генерируем уникальное имя для избежания конфликтов
+    // Generate a unique name to avoid conflicts
     const uniqueSuffix = crypto.randomBytes(16).toString('hex');
     const fileExt = path.extname(file.originalname).toLowerCase();
     cb(null, `${uniqueSuffix}${fileExt}`);
   }
 });
 
-// Расширенная проверка изображений для безопасности
+// Extended image check for security
 const validateImage = (req, file, cb) => {
-  // Проверяем MIME тип
+  // Check MIME type
   if (!file.mimetype.startsWith('image/')) {
-    return cb(new Error('Разрешены только изображения'));
+    return cb(new Error('Only images are allowed'));
   }
 
-  // Проверяем расширение файла
+  // Check file extension
   const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   const ext = path.extname(file.originalname).toLowerCase();
   
   if (!validExtensions.includes(ext)) {
-    return cb(new Error('Недопустимое расширение файла. Разрешены только: ' + validExtensions.join(', ')));
+    return cb(new Error('Invalid file extension. Only: ' + validExtensions.join(', ')));
   }
   
-  // Всё в порядке
+  // Everything is fine
   cb(null, true);
 };
 
-// Создаем конфигурации для разных типов изображений
+// Create configurations for different types of images
 const createImageUploader = (options) => {
   const {
     fieldName = 'image',
-    maxFileSize = 5 * 1024 * 1024,  // 5 МБ по умолчанию
-    imageType = 'general',          // общий тип по умолчанию
+    maxFileSize = 5 * 1024 * 1024,  // 5 MB by default
+    imageType = 'general',          // general type by default
     maxWidth,
     maxHeight,
-    useLocalOptimization = false    // использовать ли локальную оптимизацию перед загрузкой
+    useLocalOptimization = false    // use local optimization before uploading
   } = options;
 
-  // Выбор настроек Cloudinary в зависимости от типа изображения
+  // Choose Cloudinary settings depending on image type
   let cloudinaryConfig;
   let folder, transformations;
 
@@ -98,7 +98,7 @@ const createImageUploader = (options) => {
       ];
   }
 
-  // Настройка Cloudinary
+  // Cloudinary settings
   const cloudinaryStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
@@ -106,7 +106,7 @@ const createImageUploader = (options) => {
       allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
       transformation: transformations,
       resource_type: 'auto',
-      // Добавляем метаданные для отслеживания
+      // Add metadata for tracking
       public_id: (req, file) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const fileNameWithoutExt = path.basename(file.originalname, path.extname(file.originalname));
@@ -115,7 +115,7 @@ const createImageUploader = (options) => {
     }
   });
 
-  // Создаем middleware
+  // Create middleware
   const upload = multer({
     storage: useLocalOptimization ? tmpStorage : cloudinaryStorage,
     fileFilter: validateImage,
@@ -124,44 +124,44 @@ const createImageUploader = (options) => {
     }
   });
 
-  // Если требуется локальная оптимизация, возвращаем middleware с дополнительной обработкой
+  // If local optimization is required, return middleware with additional processing
   if (useLocalOptimization) {
     return {
       single: (fieldName) => {
         return [
           upload.single(fieldName),
           async (req, res, next) => {
-            // Если файл не был загружен, пропускаем обработку
+            // If file was not uploaded, skip processing
             if (!req.file) {
               return next();
             }
             
             try {
-              // Здесь можно добавить дополнительную локальную обработку изображения
-              // Например, через sharp или другую библиотеку
+              // You can add additional local image processing here
+              // For example, through sharp or another library
               
-              // После обработки загружаем в Cloudinary
+              // After processing, upload to Cloudinary
               const result = await cloudinary.uploader.upload(req.file.path, {
                 folder: folder,
                 transformation: transformations,
                 resource_type: 'auto'
               });
               
-              // Заменяем информацию о файле
+              // Replace file information
               req.file.path = result.secure_url;
               req.file.filename = result.public_id;
               req.file.cloudinaryDetails = result;
               
-              // Удаляем временный файл
+              // Delete temporary file
               fs.unlinkSync(req.file.path);
               
               next();
             } catch (error) {
-              // Удаляем временный файл в случае ошибки
+              // Delete temporary file in case of error
               try {
                 fs.unlinkSync(req.file.path);
               } catch (e) {
-                console.error('Ошибка при удалении временного файла:', e);
+                console.error('Error deleting temporary file:', e);
               }
               next(error);
             }

@@ -9,45 +9,44 @@ const { avatarUploader } = require('../middleware/imageProcessor');
 const formatResponse = require('../utils/formatResponse');
 const sanitizeUser = require('../utils/sanitizeUser');
 
-// Получить профиль текущего пользователя
+// Get current user's profile
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
-    // Применяем санитизацию и форматируем ответ
+    // Apply sanitization and format response
     const sanitizedUser = sanitizeUser(user);
     res.json(formatResponse(sanitizedUser));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении профиля' });
+    res.status(500).json({ message: 'Error fetching profile' });
   }
 });
 
-// Получить профиль пользователя по ID
+// Get user profile by ID
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Применяем sanitizeUser с опцией publicView
+    // Apply sanitizeUser with publicView option
     const sanitizedUser = sanitizeUser(user, { publicView: true });
     res.json(formatResponse(sanitizedUser));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении профиля' });
+    res.status(500).json({ message: 'Error fetching profile' });
   }
 });
 
-// Обновить профиль пользователя
+// Update user profile
 router.put('/profile', auth, validateUserProfile, async (req, res) => {
   try {
     const { username, description } = req.body;
     
-    // Используем findByIdAndUpdate вместо findById + save 
-    // для более эффективного обновления в одной операции
+    // Use findByIdAndUpdate for more efficient update in one operation
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
       { 
@@ -55,104 +54,104 @@ router.put('/profile', auth, validateUserProfile, async (req, res) => {
         description: description || undefined 
       },
       { 
-        new: true,            // вернуть обновленный документ
-        runValidators: true   // запустить валидаторы схемы
+        new: true,            // return updated document
+        runValidators: true   // run schema validators
       }
     );
     
     if (!updatedUser) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Применяем санитизацию данных пользователя
+    // Apply user data sanitization
     const sanitizedUser = sanitizeUser(updatedUser);
     res.json(formatResponse(sanitizedUser));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при обновлении профиля' });
+    res.status(500).json({ message: 'Error updating profile' });
   }
 });
 
-// Сменить пароль
+// Change password
 router.put('/change-password', auth, validatePasswordChange, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Все поля обязательны' });
+      return res.status(400).json({ message: 'All fields are required' });
     }
     
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Проверяем, зарегистрирован ли пользователь через Google
+    // Check if user is registered via Google
     if (user.googleId) {
       return res.status(403).json({
-        message: 'Пользователи, зарегистрированные через Google, должны менять пароль в настройках своего Google-аккаунта',
+        message: 'Users registered via Google must change their password in their Google account settings',
         isGoogleUser: true
       });
     }
     
-    // Проверяем текущий пароль
+    // Check current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Неверный текущий пароль' });
+      return res.status(400).json({ message: 'Incorrect current password' });
     }
     
-    // Хешируем и сохраняем новый пароль
+    // Hash and save new password
     const hashPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashPassword;
     
     await user.save();
     
-    res.json(formatResponse({ message: 'Пароль успешно изменен' }));
+    res.json(formatResponse({ message: 'Password changed successfully' }));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при смене пароля' });
+    res.status(500).json({ message: 'Error changing password' });
   }
 });
 
-// Сменить email
+// Change email
 router.put('/change-email', auth, validateEmailChange, async (req, res) => {
   try {
     const { password, newEmail } = req.body;
     
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Проверяем, зарегистрирован ли пользователь через Google
+    // Check if user is registered via Google
     if (user.googleId) {
       return res.status(403).json({
-        message: 'Пользователи, зарегистрированные через Google, должны менять email в настройках своего Google-аккаунта',
+        message: 'Users registered via Google must change their email in their Google account settings',
         isGoogleUser: true
       });
     }
     
-    // Проверяем, не занят ли уже этот email
+    // Check if this email is already taken
     const existingUser = await User.findOne({ email: newEmail });
     if (existingUser) {
-      return res.status(400).json({ message: 'Этот email уже используется' });
+      return res.status(400).json({ message: 'This email is already in use' });
     }
     
-    // Проверяем текущий пароль
+    // Check current password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Неверный пароль' });
+      return res.status(400).json({ message: 'Incorrect password' });
     }
     
-    // Сохраняем старый email (может понадобиться для отправки уведомления)
+    // Save old email (may be needed for notification)
     const oldEmail = user.email;
     
-    // Обновляем email и сбрасываем флаг подтверждения
+    // Update email and reset verification flag
     user.email = newEmail;
     user.isEmailVerified = false;
     
     await user.save();
     
-    // Отправляем письмо для подтверждения нового email
+    // Send email to confirm new email
     const transporter = require('../utils/mailer');
     const jwt = require('jsonwebtoken');
     
@@ -167,140 +166,139 @@ router.put('/change-email', auth, validateEmailChange, async (req, res) => {
     try {
       await transporter.sendMail({
         to: newEmail,
-        subject: 'Подтверждение смены email',
+        subject: 'Confirm your new email',
         html: `
-          <h2>Подтвердите новый email</h2>
-          <p>Для завершения смены email перейдите по ссылке:</p>
+          <h2>Confirm your new email</h2>
+          <p>To complete the email change, follow this link:</p>
           <a href="${url}">${url}</a>
-          <p>Ссылка действительна 1 час.</p>
+          <p>The link is valid for 1 hour.</p>
         `
       });
       
-      // Отправляем уведомление на старый email
+      // Send notification to old email
       await transporter.sendMail({
         to: oldEmail,
-        subject: 'Уведомление о смене email',
+        subject: 'Email change notification',
         html: `
-          <h2>Ваш email был изменен</h2>
-          <p>Email в вашем аккаунте был изменен на: ${newEmail}</p>
-          <p>Если это были не вы, немедленно свяжитесь с администрацией.</p>
+          <h2>Your email has been changed</h2>
+          <p>The email in your account has been changed to: ${newEmail}</p>
+          <p>If this was not you, contact the administration immediately.</p>
         `
       });
     } catch (err) {
-      console.error('Ошибка отправки писем:', err);
+      console.error('Error sending emails:', err);
     }
     
     res.json(formatResponse({ 
-      message: 'Email успешно изменен. Пожалуйста, подтвердите новый email, перейдя по ссылке в письме.',
+      message: 'Email changed successfully. Please confirm your new email by following the link in the email.',
       requiresVerification: true
     }));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при смене email' });
+    res.status(500).json({ message: 'Error changing email' });
   }
 });
 
-// Загрузить аватар пользователя
+// Upload user avatar
 router.post('/upload-avatar', auth, avatarUploader.single('avatar'), async (req, res, next) => {
   try {
-    // Проверяем, загружен ли файл
+    // Check if file was uploaded
     if (!req.file) {
-      return res.status(400).json({ message: 'Файл не был загружен' });
+      return res.status(400).json({ message: 'No file was uploaded' });
     }
 
-    // Получаем пользователя из базы данных
+    // Get user from database
     const user = await User.findById(req.user.userId);
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Если у пользователя уже есть аватар, удаляем его из Cloudinary
+    // If user already has an avatar, delete it from Cloudinary
     if (user.image) {
       try {
-        // Извлекаем public_id из URL
+        // Extract public_id from URL
         const publicId = user.image.split('/').pop().split('.')[0];
-        // Определяем папку на основе URL
+        // Determine folder based on URL
         const folder = user.image.includes('blog-avatars') ? 'blog-avatars' : 'blog-uploads';
-        // Удаляем старое изображение
+        // Delete old image
         await cloudinary.uploader.destroy(`${folder}/${publicId}`);
       } catch (error) {
-        console.log('Ошибка при удалении старого аватара:', error);
-        // Продолжаем работу даже при ошибке удаления
+        console.log('Error deleting old avatar:', error);
+        // Continue even if deletion fails
       }
     }
     
-    // Cloudinary возвращает полный URL в req.file.path
+    // Cloudinary returns the full URL in req.file.path
     const imageUrl = req.file.path;
     
-    // Обновляем профиль пользователя за одну операцию
+    // Update user profile in one operation
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
       { image: imageUrl },
       { new: true }
     );
     
-    // Санитизируем данные пользователя перед отправкой
+    // Sanitize user data before sending
     const sanitizedUser = sanitizeUser(updatedUser);
     
     res.json(formatResponse({ 
-      message: 'Аватар успешно загружен', 
+      message: 'Avatar uploaded successfully', 
       imageUrl,
       user: sanitizedUser
     }));
   } catch (e) {
-    console.error('Ошибка при загрузке аватара:', e);
-    next(e); // Передаем ошибку глобальному обработчику
+    res.status(500).json({ message: 'Error uploading avatar' });
   }
 });
 
-// Удалить аватар пользователя
+// Delete user avatar
 router.delete('/remove-avatar', auth, async (req, res) => {
   try {
-    // Получаем пользователя из базы
+    // Get user from database
     const user = await User.findById(req.user.userId);
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Проверяем, есть ли аватар для удаления
+    // Check if user has an avatar to delete
     if (!user.image) {
-      return res.status(400).json({ message: 'У пользователя нет аватара' });
+      return res.status(400).json({ message: 'User does not have an avatar' });
     }
     
-    // Извлекаем public_id из URL и определяем папку
+    // Extract public_id from URL and determine folder
     const publicId = user.image.split('/').pop().split('.')[0];
     const folder = user.image.includes('blog-avatars') ? 'blog-avatars' : 'blog-uploads';
     
     try {
-      // Удаляем изображение из Cloudinary
+      // Delete image from Cloudinary
       await cloudinary.uploader.destroy(`${folder}/${publicId}`);
     } catch (error) {
-      console.log('Ошибка при удалении аватара из Cloudinary:', error);
-      // Продолжаем работу даже при ошибке удаления
+      console.log('Error deleting avatar from Cloudinary:', error);
+      // Continue even if deletion fails
     }
     
-    // Сбрасываем аватар пользователя на null
+    // Reset user avatar to null
     user.image = null;
     await user.save();
     
     res.json(formatResponse({ 
-      message: 'Аватар успешно удален'
+      message: 'Avatar deleted successfully'
     }));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при удалении аватара' });
+    res.status(500).json({ message: 'Error deleting avatar' });
   }
 });
 
-// Проверить тип аутентификации пользователя
+// Check user authentication type
 router.get('/auth-type', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('googleId');
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
     res.json(formatResponse({
@@ -309,7 +307,7 @@ router.get('/auth-type', auth, async (req, res) => {
     }));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка при определении типа аутентификации' });
+    res.status(500).json({ message: 'Error determining authentication type' });
   }
 });
 

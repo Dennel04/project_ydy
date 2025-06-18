@@ -1,25 +1,25 @@
-// Обработчик ошибок валидации
+// Validation error handler
 const errorHandler = (err, req, res, next) => {
-  // Мультер может выдавать ошибки limit
+  // Multer may throw limit errors
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({
-      message: 'Размер файла превышает допустимый лимит (5MB)'
+      message: 'File size exceeds the allowed limit (5MB)'
     });
   }
   
-  // Ошибка multer
-  if (err.message && err.message.includes('Загружать можно только изображения')) {
+  // Multer error
+  if (err.message && err.message.includes('Only images can be uploaded')) {
     return res.status(400).json({
       message: err.message
     });
   }
   
-  // Логируем ошибку в консоль
+  // Log the error to the console
   console.error(err.stack);
   
-  // Ответ с ошибкой
+  // Error response
   res.status(err.statusCode || 500).json({
-    message: err.message || 'Внутренняя ошибка сервера'
+    message: err.message || 'Internal server error'
   });
 };
 

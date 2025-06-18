@@ -1,40 +1,40 @@
-# Настройка Google OAuth для аутентификации
+# Google OAuth Setup for Authentication
 
-## Шаг 1: Создание проекта в Google Cloud Console
+## Step 1: Create a Project in Google Cloud Console
 
-1. Перейдите в [Google Cloud Console](https://console.cloud.google.com/)
-2. Создайте новый проект или выберите существующий
-3. Перейдите в "API и сервисы" > "Учетные данные"
-4. Нажмите "Создать учетные данные" > "OAuth ID клиента"
-5. Если потребуется, сначала настройте "Экран согласия OAuth" (укажите название приложения, email поддержки и домашнюю страницу)
-6. Выберите тип приложения "Веб-приложение"
-7. Заполните форму:
-   - Название: название вашего приложения
-   - Разрешенные URI перенаправления: 
-     - Для разработки: `http://localhost:5000/api/auth/google/callback`
-     - Для продакшн: `https://your-domain.com/api/auth/google/callback`
-8. Нажмите "Создать"
-9. Сохраните полученные Client ID и Client Secret
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Go to "APIs & Services" > "Credentials"
+4. Click "Create Credentials" > "OAuth Client ID"
+5. If required, first configure the "OAuth consent screen" (enter app name, support email, and homepage)
+6. Select application type "Web application"
+7. Fill out the form:
+   - Name: your application name
+   - Authorized redirect URIs:
+     - For development: `http://localhost:5000/api/auth/google/callback`
+     - For production: `https://your-domain.com/api/auth/google/callback`
+8. Click "Create"
+9. Save the generated Client ID and Client Secret
 
-## Шаг 2: Настройка переменных окружения
+## Step 2: Configure Environment Variables
 
-Добавьте следующие переменные в ваш файл `.env`:
+Add the following variables to your `.env` file:
 
 ```
 # Google OAuth
-GOOGLE_CLIENT_ID=ваш_client_id
-GOOGLE_CLIENT_SECRET=ваш_client_secret
-FRONTEND_URL=http://localhost:3000 # URL фронтенда для редиректа после аутентификации
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+FRONTEND_URL=http://localhost:3000 # Frontend URL for redirect after authentication
 ```
 
-## Шаг 3: Настройка фронтенда
+## Step 3: Frontend Setup
 
-На стороне фронтенда вам потребуется:
+On the frontend you need to:
 
-1. Создать страницу для обработки callback от Google OAuth
-2. Создать кнопку "Войти через Google", которая перенаправляет на URL: `/api/auth/google`
+1. Create a page to handle the callback from Google OAuth
+2. Create a "Sign in with Google" button that redirects to `/api/auth/google`
 
-Пример компонента для обработки callback на React:
+Example React component for handling the callback:
 
 ```jsx
 import { useEffect, useState } from 'react';
@@ -49,15 +49,15 @@ function GoogleCallback() {
   useEffect(() => {
     async function verifyToken() {
       try {
-        // Получаем токен из URL
+        // Get token from URL
         const urlParams = new URLSearchParams(location.search);
         const token = urlParams.get('token');
         
         if (!token) {
-          throw new Error('Токен не найден');
+          throw new Error('Token not found');
         }
         
-        // Проверяем токен через API
+        // Verify token via API
         const response = await fetch('/api/auth/google/verify-token', {
           method: 'POST',
           headers: {
@@ -67,16 +67,16 @@ function GoogleCallback() {
         });
         
         if (!response.ok) {
-          throw new Error('Ошибка авторизации');
+          throw new Error('Authorization error');
         }
         
         const data = await response.json();
         
-        // Сохраняем токен и данные пользователя
+        // Save token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // Перенаправляем на главную страницу
+        // Redirect to home page
         navigate('/');
       } catch (err) {
         setError(err.message);
@@ -89,11 +89,11 @@ function GoogleCallback() {
   }, [location, navigate]);
 
   if (loading) {
-    return <div>Загрузка...</div>;
+    return <div>Loading...</div>;
   }
   
   if (error) {
-    return <div>Ошибка: {error}</div>;
+    return <div>Error: {error}</div>;
   }
   
   return null;
@@ -102,7 +102,7 @@ function GoogleCallback() {
 export default GoogleCallback;
 ```
 
-Пример кнопки входа через Google:
+Example Google login button:
 
 ```jsx
 function GoogleLoginButton() {
@@ -111,23 +111,23 @@ function GoogleLoginButton() {
       href="/api/auth/google"
       className="google-login-button"
     >
-      Войти через Google
+      Sign in with Google
     </a>
   );
 }
 ```
 
-## Шаг 4: Тестирование
+## Step 4: Testing
 
-1. Убедитесь, что все переменные окружения настроены правильно
-2. Перезапустите сервер
-3. Перейдите на страницу входа в вашем приложении
-4. Нажмите кнопку "Войти через Google"
-5. Следуйте инструкциям Google для авторизации
-6. После успешной авторизации вы должны быть перенаправлены обратно в ваше приложение
+1. Make sure all environment variables are set correctly
+2. Restart the server
+3. Go to the login page in your app
+4. Click the "Sign in with Google" button
+5. Follow Google's instructions to authorize
+6. After successful authorization, you should be redirected back to your app
 
-## Решение проблем
+## Troubleshooting
 
-1. Если вы получаете ошибку "Redirect URI mismatch", убедитесь, что URL в Google Cloud Console точно соответствует URL вашего callbackURL в конфигурации Passport
-2. Проверьте консоль на наличие ошибок
-3. Проверьте, что все необходимые переменные окружения настроены правильно 
+1. If you get a "Redirect URI mismatch" error, make sure the URL in Google Cloud Console exactly matches your callbackURL in Passport configuration
+2. Check the console for errors
+3. Make sure all required environment variables are set correctly 

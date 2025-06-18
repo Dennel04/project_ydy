@@ -1,45 +1,45 @@
 /**
- * Middleware для автоматического форматирования ответов API
- * - Заменяет _id на id для совместимости с Django
- * - Форматирует даты из ISO в формат datetime
+ * Middleware for automatic formatting API responses
+ * - Replaces _id with id for compatibility with Django
+ * - Formats dates from ISO to datetime format
  */
 
 const formatResponse = require('../utils/formatResponse');
 
 /**
- * Переопределяет метод res.json для автоматического форматирования ответов
+ * Overrides the res.json method for automatic formatting responses
  */
 function responseFormatter(req, res, next) {
-  // Сохраняем оригинальный метод json
+  // Saves the original json method
   const originalJson = res.json;
   
-  // Переопределяем метод json для автоматического форматирования
+  // Overrides the json method for automatic formatting
   res.json = function(data) {
-    // Пропускаем форматирование для сообщений об ошибках и простых ответов
+    // Skips formatting for error messages and simple responses
     if (
       !data || 
       typeof data !== 'object' || 
       (data.message && Object.keys(data).length === 1) ||
       data.error
     ) {
-      // console.log('[ResponseFormatter] Пропуск форматирования для простого ответа', 
+      // console.log('[ResponseFormatter] Skipping formatting for simple response', 
       //   typeof data === 'object' ? JSON.stringify(data).substring(0, 100) : typeof data);
       return originalJson.call(this, data);
     }
     
     try {
-      // Форматируем данные
+      // Formats the data
       const formattedData = formatResponse(data);
       
-      // Логируем для отладки (закомментировано для production)
-      // console.log('[ResponseFormatter] Форматирование применено:', 
-      //  `Путь: ${req.path}, Тип данных: ${Array.isArray(data) ? 'Array' : 'Object'}`);
+      // Logs for debugging (commented out for production)
+      // console.log('[ResponseFormatter] Formatting applied:', 
+      //  `Path: ${req.path}, Data type: ${Array.isArray(data) ? 'Array' : 'Object'}`);
       
-      // Вызываем оригинальный метод с отформатированными данными
+      // Calls the original method with formatted data
       return originalJson.call(this, formattedData);
     } catch (error) {
-      console.error('[ResponseFormatter] Ошибка форматирования:', error);
-      // При ошибке возвращаем оригинальные данные
+      console.error('[ResponseFormatter] Formatting error:', error);
+      // If there's an error, returns the original data
       return originalJson.call(this, data);
     }
   };

@@ -11,36 +11,36 @@ const UserSchema = new mongoose.Schema({
   favourite: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   email: { type: String, required: true, unique: true },
   isEmailVerified: { type: Boolean, default: false },
-  emailVerificationExpires: { type: Date, default: () => new Date(Date.now() + 48 * 60 * 60 * 1000) }, // 48 часов по умолчанию
+  emailVerificationExpires: { type: Date, default: () => new Date(Date.now() + 48 * 60 * 60 * 1000) }, // 48 hours by default
   liked_comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   googleId: { type: String, index: true, sparse: true },
   
-  // Поля для безопасности
-  loginAttempts: { type: Number, default: 0 }, // Количество неудачных попыток входа
-  lockUntil: { type: Date, default: null },   // Время, до которого аккаунт заблокирован
-  passwordResetToken: { type: String },       // Токен для сброса пароля
-  passwordResetExpires: { type: Date },       // Время истечения токена сброса пароля
-  lastPasswordChange: { type: Date }          // Дата последней смены пароля
+  // Security fields
+  loginAttempts: { type: Number, default: 0 }, // Number of failed login attempts
+  lockUntil: { type: Date, default: null },   // Time until account is locked
+  passwordResetToken: { type: String },       // Password reset token
+  passwordResetExpires: { type: Date },       // Password reset token expiration time
+  lastPasswordChange: { type: Date }          // Last password change date
 }, { timestamps: true });
 
-// Индекс для поиска по логину (уже есть из-за unique: true)
+// Index for login search (already exists due to unique: true)
 // UserSchema.index({ login: 1 });
 
-// Индекс для поиска по email (уже есть из-за unique: true)
+// Index for email search (already exists due to unique: true)
 // UserSchema.index({ email: 1 });
 
-// Индекс для поиска по имени пользователя
+// Index for username search
 UserSchema.index({ username: 1 });
 
-// Индекс для проверки подтверждения email
+// Index for email verification check
 UserSchema.index({ isEmailVerified: 1 });
 
-// Индекс для поиска заблокированных аккаунтов
+// Index for blocked accounts search
 UserSchema.index({ lockUntil: 1 });
 
-// Виртуальное свойство для проверки блокировки
+// Virtual property for checking lock
 UserSchema.virtual('isLocked').get(function() {
-  // Проверяем, существует ли lockUntil и не истекло ли время блокировки
+  // Check if lockUntil exists and if the lock time has expired
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 

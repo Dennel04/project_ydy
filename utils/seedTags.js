@@ -2,17 +2,17 @@ const mongoose = require('mongoose');
 const Tag = require('../models/Tag');
 require('dotenv').config();
 
-// Функция для создания slug из имени
+// Function to create a slug from a name
 const createSlug = (name) => {
   return name.toLowerCase()
-    .replace(/\s+/g, '-')     // Заменяем пробелы на дефисы
-    .replace(/[^\w-]+/g, '')  // Удаляем не-слова и не-дефисы
-    .replace(/--+/g, '-')     // Заменяем несколько дефисов на один
-    .replace(/^-+/, '')       // Удаляем дефисы в начале
-    .replace(/-+$/, '');      // Удаляем дефисы в конце
+    .replace(/\s+/g, '-')     // Replace spaces with hyphens
+    .replace(/[^\w-]+/g, '')  // Remove non-word characters and non-hyphens
+    .replace(/--+/g, '-')     // Replace multiple hyphens with a single one
+    .replace(/^-+/, '')       // Remove hyphens at the start
+    .replace(/-+$/, '');      // Remove hyphens at the end
 };
 
-// Список предопределенных тегов с описаниями
+// List of predefined tags with descriptions
 const tagsList = [
   { name: 'Nature', description: 'Environment, plants, animals, and natural world topics' },
   { name: 'Games', description: 'Video games, board games, gaming industry and game development' },
@@ -25,29 +25,29 @@ const tagsList = [
   { name: 'Technology', description: 'Technology trends, gadgets, innovations and digital advances' }
 ];
 
-// Функция для заполнения базы данных тегами
+// Function to seed the database with tags
 const seedTags = async () => {
   try {
-    // Подключаемся к MongoDB
+    // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
     
     console.log('MongoDB connected for seeding tags');
     
-    // Удаляем существующие теги, если они есть
+    // Remove existing tags if any
     await Tag.deleteMany({});
     console.log('Existing tags cleared');
     
-    // Преобразуем список тегов, добавляя slug
+    // Transform the tag list by adding slugs
     const tagsWithSlugs = tagsList.map(tag => ({
       ...tag,
       slug: createSlug(tag.name)
     }));
     
-    // Добавляем теги в базу данных
+    // Add tags to the database
     await Tag.insertMany(tagsWithSlugs);
     console.log(`${tagsWithSlugs.length} tags successfully added to the database`);
     
-    // Закрываем соединение с MongoDB
+    // Close MongoDB connection
     await mongoose.connection.close();
     console.log('MongoDB connection closed');
     
@@ -58,5 +58,5 @@ const seedTags = async () => {
   }
 };
 
-// Запускаем функцию заполнения тегов
+// Run the seed function
 seedTags(); 

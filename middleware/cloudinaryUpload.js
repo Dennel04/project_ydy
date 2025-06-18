@@ -2,37 +2,37 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../utils/cloudinary');
 
-// Настройка хранилища Cloudinary
+// Cloudinary storage configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'blog-uploads', // Название папки в Cloudinary
+    folder: 'blog-uploads', // Folder name in Cloudinary
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     transformation: [
-      { width: 1000, crop: "scale" }, // Масштабирование до ширины 1000px с сохранением пропорций
-      { quality: "auto" },           // Автоматическая оптимизация качества
-      { fetch_format: "auto" }       // Автоматический выбор формата (webp для поддерживаемых браузеров)
+      { width: 1000, crop: "scale" }, // Scale to width 1000px keeping aspect ratio
+      { quality: "auto" },           // Automatic quality optimization
+      { fetch_format: "auto" }       // Automatic format selection (webp for supported browsers)
     ],
-    // Убираем жесткое указание формата и качества, т.к. это теперь в трансформации
-    resource_type: 'auto' // Автоматическое определение типа ресурса
+    // No hardcoded format and quality, as it's now in transformation
+    resource_type: 'auto' // Automatic resource type detection
   }
 });
 
-// Фильтр файлов - разрешаем только изображения
+// File filter - allow only images
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Загружать можно только изображения!'), false);
+    cb(new Error('Only images can be uploaded!'), false);
   }
 };
 
-// Настройка multer с Cloudinary
+// Multer configuration with Cloudinary
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // Увеличиваем до 10MB, т.к. изображения будут оптимизированы
+    fileSize: 10 * 1024 * 1024 // Increased to 10MB, as images will be optimized
   }
 });
 

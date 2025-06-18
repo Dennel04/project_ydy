@@ -10,49 +10,49 @@ const { setTokenCookie, clearTokenCookie } = require('../middleware/secureTokens
 const formatResponse = require('../utils/formatResponse');
 const sanitizeUser = require('../utils/sanitizeUser');
 
-// Подключаем конфигурацию passport
+// Connect passport configuration
 require('../config/passport');
 
-// Применяем rate limiter ко всем маршрутам аутентификации
+// Apply rate limiter to all authentication routes
 router.use(authLimiter);
 
-// Регистрация
+// Registration
 router.post('/register', async (req, res) => {
   try {
     const { login, password, username, description, email } = req.body;
     
-    // Улучшенная валидация
+    // Improved validation
     if (!login || login.length < 4) {
-      return res.status(400).json({ message: 'Логин должен содержать минимум 4 символа' });
+      return res.status(400).json({ message: 'Login must contain at least 4 characters' });
     }
     
     if (!password || password.length < 8) {
-      return res.status(400).json({ message: 'Пароль должен содержать минимум 8 символов' });
+      return res.status(400).json({ message: 'Password must contain at least 8 characters' });
     }
     
-    // Проверка сложности пароля
+    // Password complexity check
     const passwordRegex = /^(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({ 
-        message: 'Пароль должен содержать минимум 8 символов и хотя бы одну цифру' 
+        message: 'Password must contain at least 8 characters and at least one digit' 
       });
     }
     
     if (!username) {
-      return res.status(400).json({ message: 'Имя пользователя обязательно' });
+      return res.status(400).json({ message: 'Username is required' });
     }
     
     if (!email) {
-      return res.status(400).json({ message: 'Email обязателен' });
+      return res.status(400).json({ message: 'Email is required' });
     }
     
-    // Проверка формата email
+    // Email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: 'Некорректный формат email' });
+      return res.status(400).json({ message: 'Invalid email format' });
     }
     
-    // Проверяем и удаляем просроченные неподтвержденные аккаунты с таким же логином или email
+    // Remove expired unverified accounts with the same login or email
     await User.deleteMany({
       $or: [
         { login, isEmailVerified: false, emailVerificationExpires: { $lt: new Date() } },
@@ -60,52 +60,52 @@ router.post('/register', async (req, res) => {
       ]
     });
     
-    // Проверяем, существует ли активный пользователь с таким логином
+    // Check if an active user with this login exists
     const candidateLogin = await User.findOne({ login });
     if (candidateLogin) {
       if (!candidateLogin.isEmailVerified) {
-        // Если существует неподтвержденный пользователь с таким логином,
-        // предлагаем повторно отправить письмо или зарегистрироваться через некоторое время
+        // If there is an unverified user with this login,
+        // suggest to resend the email or register again later
         const hoursLeft = Math.ceil((candidateLogin.emailVerificationExpires - new Date()) / (1000 * 60 * 60));
         return res.status(400).json({ 
-          message: `Пользователь с таким логином уже зарегистрирован, но не подтвердил email. Попробуйте через ${hoursLeft} ч.`,
+          message: `User with this login is already registered, but did not confirm email. Please try again in ${hoursLeft} hours`,
           pendingVerification: true 
         });
       }
-      return res.status(400).json({ message: 'Пользователь с таким логином уже существует' });
+      return res.status(400).json({ message: 'User with this login already exists' });
     }
     
-    // Проверяем, существует ли активный пользователь с таким email
+    // Check if an active user with this email exists
     const candidateEmail = await User.findOne({ email });
     if (candidateEmail) {
       if (!candidateEmail.isEmailVerified) {
-        // Если существует неподтвержденный пользователь с таким email,
-        // предлагаем повторно отправить письмо или зарегистрироваться через некоторое время
+        // If there is an unverified user with this email,
+        // suggest to resend the email or register again later
         const hoursLeft = Math.ceil((candidateEmail.emailVerificationExpires - new Date()) / (1000 * 60 * 60));
         return res.status(400).json({ 
-          message: `Email уже зарегистрирован, но не подтвержден. Попробуйте через ${hoursLeft} ч.`,
+          message: `Email is already registered, but not confirmed. Please try again in ${hoursLeft} hours`,
           pendingVerification: true 
         });
       }
-      return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
+      return res.status(400).json({ message: 'User with this email already exists' });
     }
     
-    // Усиленное хеширование пароля
-    const salt = await bcrypt.genSalt(12); // увеличиваем сложность соли
+    // Enhanced password hashing
+    const salt = await bcrypt.genSalt(12); // increase salt complexity
     const hashPassword = await bcrypt.hash(password, salt);
     
-    // Создаем пользователя
+    // Create user
     const user = new User({
       login,
       password: hashPassword,
       username,
       description: description || '',
       email,
-      emailVerificationExpires: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 час на подтверждение
+      emailVerificationExpires: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour for confirmation
     });
     await user.save();
 
-    // Отправляем подтверждение email
+    // Send email confirmation
     const emailToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -117,70 +117,70 @@ router.post('/register', async (req, res) => {
     try {
       await transporter.sendMail({
         to: user.email,
-        subject: 'Подтверждение регистрации',
+        subject: 'Registration Confirmation',
         html: `
-          <h2>Подтвердите регистрацию</h2>
-          <p>Для завершения регистрации перейдите по ссылке:</p>
+          <h2>Confirm Registration</h2>
+          <p>To complete registration, please click the link:</p>
           <a href="${url}">${url}</a>
-          <p>Ссылка действительна 1 час.</p>
+          <p>Link is valid for 1 hour.</p>
         `
       });
     } catch (err) {
-      console.error('Ошибка отправки письма:', err);
+      console.error('Error sending email:', err);
     }
 
-    res.status(201).json({ message: 'Проверьте почту для завершения регистрации' });
+    res.status(201).json({ message: 'Check your email for confirmation' });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Логин
+// Login
 router.post('/login', async (req, res) => {
   try {
     const { login, password } = req.body;
     
     if (!login || !password) {
-      return res.status(400).json({ message: 'Введите логин и пароль' });
+      return res.status(400).json({ message: 'Enter login and password' });
     }
     
-    // Находим пользователя
+    // Find user
     const user = await User.findOne({ login });
     if (!user) {
-      return res.status(400).json({ message: 'Пользователь не найден' });
+      return res.status(400).json({ message: 'User not found' });
     }
     
     if (!user.isEmailVerified) {
-      return res.status(400).json({ message: 'Подтвердите почту для входа' });
+      return res.status(400).json({ message: 'Confirm email to log in' });
     }
     
-    // Проверяем блокировку аккаунта
+    // Check account lock
     if (user.lockUntil && user.lockUntil > Date.now()) {
-      // Вычисляем оставшееся время блокировки в минутах
+      // Calculate remaining lock time in minutes
       const remainingMinutes = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
       return res.status(400).json({ 
-        message: `Аккаунт временно заблокирован. Повторите попытку через ${remainingMinutes} мин.`, 
+        message: `Account temporarily blocked. Please try again in ${remainingMinutes} minutes`, 
         lockUntil: user.lockUntil,
         remainingMinutes
       });
     }
     
-    // Проверяем пароль
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      // Увеличиваем счетчик неудачных попыток
+      // Increase failed attempts counter
       user.loginAttempts = (user.loginAttempts || 0) + 1;
       
-      // Блокируем аккаунт после 5 неудачных попыток
+      // Block account after 5 failed attempts
       if (user.loginAttempts >= 5) {
-        const lockTime = 30 * 60 * 1000; // 30 минут в миллисекундах
+        const lockTime = 30 * 60 * 1000; // 30 minutes in milliseconds
         user.lockUntil = Date.now() + lockTime;
         
         await user.save();
         
         return res.status(400).json({ 
-          message: 'Превышено количество попыток входа. Аккаунт заблокирован на 30 минут.', 
+          message: 'Exceeded login attempts. Account blocked for 30 minutes', 
           lockUntil: user.lockUntil,
           remainingMinutes: 30
         });
@@ -188,96 +188,97 @@ router.post('/login', async (req, res) => {
       
       await user.save();
       
-      // Сообщаем пользователю, сколько попыток осталось
+      // Inform user how many attempts are left
       const attemptsLeft = 5 - user.loginAttempts;
       return res.status(400).json({ 
-        message: `Неверный пароль. Осталось попыток: ${attemptsLeft}`,
+        message: `Incorrect password. Remaining attempts: ${attemptsLeft}`,
         attemptsLeft
       });
     }
     
-    // Успешный вход: сбрасываем счетчик попыток и время блокировки
+    // Successful login: reset attempts and lock time
     user.loginAttempts = 0;
     user.lockUntil = null;
     await user.save();
     
-    // Создаем JWT токен
+    // Create JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
-    // Устанавливаем токен в HttpOnly cookie
+    // Set token in HttpOnly cookie
     setTokenCookie(res, token, '7d');
     
-    // Санитизируем данные пользователя перед отправкой
+    // Sanitize user data before sending
     const sanitizedUser = sanitizeUser(user);
     
-    // Базовый ответ с данными пользователя
+    // Basic response with user data
     const response = { user: sanitizedUser };
     
-    // Возвращаем токен только в режиме разработки или для тестирования
+    // Return token only in development or for testing
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
       response.token = token;
     }
     
-    // Отправляем данные пользователя
+    // Send user data
     res.json(formatResponse(response));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Выход
+// Logout
 router.post('/logout', (req, res) => {
-  // Удаляем cookie с токеном
+  // Remove token cookie
   clearTokenCookie(res);
-  res.json({ message: 'Успешный выход из системы' });
+  res.json({ message: 'Successful logout' });
 });
 
+// Email verification
 router.get('/verify-email', async (req, res) => {
   try {
     const { token } = req.query;
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return res.status(400).json({ message: 'Пользователь не найден' });
+      return res.status(400).json({ message: 'User not found' });
     }
     if (user.isEmailVerified) {
-      return res.status(400).json({ message: 'Почта уже подтверждена' });
+      return res.status(400).json({ message: 'Email already confirmed' });
     }
     user.isEmailVerified = true;
     await user.save();
-    res.json({ message: 'Почта успешно подтверждена! Теперь вы можете войти.' });
+    res.json({ message: 'Email confirmed successfully! You can now log in.' });
   } catch (e) {
-    res.status(400).json({ message: 'Некорректная или просроченная ссылка' });
+    res.status(400).json({ message: 'Invalid or expired link' });
   }
 });
 
-// Google OAuth маршруты
-// Начало аутентификации через Google
+// Google OAuth routes
+// Start Google authentication
 router.get('/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }));
 
-// Callback URL для Google OAuth
+// Callback URL for Google OAuth
 router.get('/google/callback', 
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   (req, res) => {
     try {
-      // Создаем JWT токен
+      // Create JWT token
       const token = jwt.sign(
         { userId: req.user._id },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      // Устанавливаем токен в HttpOnly cookie
+      // Set token in HttpOnly cookie
       setTokenCookie(res, token, '7d');
       
-      // Перенаправляем на фронтенд
+      // Redirect to frontend
       const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       res.redirect(`${redirectUrl}/auth/google-callback`);
     } catch (error) {
@@ -287,166 +288,166 @@ router.get('/google/callback',
   }
 );
 
-// Проверка аутентификации через Google
+// Google authentication verification
 router.post('/google/verify-token', async (req, res) => {
   try {
     const { token } = req.body;
     
     if (!token) {
-      return res.status(400).json({ message: 'Токен не предоставлен' });
+      return res.status(400).json({ message: 'Token not provided' });
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Применяем санитизацию данных пользователя
+    // Sanitize user data
     const sanitizedUser = sanitizeUser(user);
     
-    // Используем formatResponse для форматирования ответа
+    // Use formatResponse for formatting
     res.json(formatResponse({
       token,
       user: sanitizedUser
     }));
   } catch (error) {
     console.error('Error verifying Google token:', error);
-    res.status(401).json({ message: 'Недействительный токен' });
+    res.status(401).json({ message: 'Invalid token' });
   }
 });
 
-// Обновление токена
+// Token refresh
 router.post('/refresh-token', async (req, res) => {
   try {
     const { token } = req.body;
     
     if (!token) {
-      return res.status(400).json({ message: 'Токен обновления не предоставлен' });
+      return res.status(400).json({ message: 'Refresh token not provided' });
     }
     
-    // Проверяем существующий токен
+    // Verify existing token
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (e) {
-      return res.status(401).json({ message: 'Недействительный или истекший токен' });
+      return res.status(401).json({ message: 'Invalid or expired token' });
     }
     
-    // Проверяем, существует ли пользователь
+    // Check if user exists
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
     if (!user.isEmailVerified) {
-      return res.status(400).json({ message: 'Подтвердите почту для входа' });
+      return res.status(400).json({ message: 'Confirm email to log in' });
     }
     
-    // Генерируем новый access token
+    // Generate new access token
     const newToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
-    // Устанавливаем токен в HttpOnly cookie
+    // Set token in HttpOnly cookie
     setTokenCookie(res, newToken, '7d');
     
-    // Санитизируем данные пользователя перед отправкой
+    // Sanitize user data before sending
     const sanitizedUser = sanitizeUser(user);
     
-    // Базовый ответ с данными пользователя
+    // Basic response with user data
     const response = { user: sanitizedUser };
     
-    // Возвращаем токен только в режиме разработки или для тестирования
+    // Return token only in development or for testing
     if (process.env.NODE_ENV !== 'production' || req.query.testing === 'true') {
       response.token = newToken;
     }
     
-    // Отправляем данные пользователя
+    // Send user data
     res.json(formatResponse(response));
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Получить один пост по id
+// Get one post by id
 router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id).populate('author', 'username');
     if (!post) {
-      return res.status(404).json({ message: 'Пост не найден' });
+      return res.status(404).json({ message: 'Post not found' });
     }
     
-    // Увеличиваем счётчик просмотров
+    // Increase view counter
     post.views += 1;
     await post.save();
     
-    // Форматируем ответ перед отправкой
+    // Format response before sending
     res.json(formatResponse(post));
   } catch (e) {
-    res.status(500).json({ message: 'Ошибка при получении поста' });
+    res.status(500).json({ message: 'Error getting post' });
   }
 });
 
-// Повторная отправка письма с подтверждением
+// Resend verification email
 router.post('/resend-verification', async (req, res) => {
   try {
     const { email } = req.body;
     
     if (!email) {
-      return res.status(400).json({ message: 'Email обязателен' });
+      return res.status(400).json({ message: 'Email is required' });
     }
     
-    // Находим пользователя по email
+    // Find user by email
     const user = await User.findOne({ email });
     
     if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    // Если email уже подтвержден
+    // If email is already confirmed
     if (user.isEmailVerified) {
-      return res.status(400).json({ message: 'Email уже подтвержден' });
+      return res.status(400).json({ message: 'Email already confirmed' });
     }
     
-    // Обновляем срок действия подтверждения
+    // Update verification expiration
     user.emailVerificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
     await user.save();
     
-    // Создаем токен для подтверждения
+    // Create token for confirmation
     const emailToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '48h' } // Увеличиваем время жизни токена
+      { expiresIn: '48h' } // Increase token lifetime
     );
     
     const url = `${process.env.API_URL || 'http://localhost:5000'}/api/auth/verify-email?token=${emailToken}`;
     
-    // Отправляем письмо
+    // Send email
     try {
       await transporter.sendMail({
         to: user.email,
-        subject: 'Подтверждение регистрации (повторная отправка)',
+        subject: 'Registration Confirmation (resend)',
         html: `
-          <h2>Повторное подтверждение регистрации</h2>
-          <p>Для завершения регистрации перейдите по ссылке:</p>
+          <h2>Resend Registration Confirmation</h2>
+          <p>To complete registration, please click the link:</p>
           <a href="${url}">${url}</a>
-          <p>Ссылка действительна 48 часов.</p>
+          <p>Link is valid for 48 hours.</p>
         `
       });
       
-      res.json({ message: 'Письмо с подтверждением отправлено повторно' });
+      res.json({ message: 'Registration confirmation email sent' });
     } catch (err) {
-      console.error('Ошибка отправки письма:', err);
-      res.status(500).json({ message: 'Ошибка при отправке письма' });
+      console.error('Error sending email:', err);
+      res.status(500).json({ message: 'Error sending email' });
     }
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

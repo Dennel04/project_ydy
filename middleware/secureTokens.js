@@ -1,19 +1,19 @@
-// Middleware для установки JWT в httpOnly cookie
+// Middleware for setting JWT in httpOnly cookie
 const setTokenCookie = (res, token, expiry = '7d') => {
-  // Устанавливаем HttpOnly куки с токеном
+  // Set HttpOnly cookie with token
   let cookieOptions = {
     httpOnly: true,
-    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 дней
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     path: '/'
   };
   
-  // В production добавляем дополнительные параметры безопасности
+  // In production, add additional security parameters
   if (process.env.NODE_ENV === 'production') {
-    // В production, но разрешаем localhost для разработки
-    cookieOptions.secure = true;  // Только HTTPS
-    cookieOptions.sameSite = 'none'; // Для кросс-доменных запросов
+    // In production, but allow localhost for development
+    cookieOptions.secure = true;  // Only HTTPS
+    cookieOptions.sameSite = 'none'; // For cross-domain requests
     
-    // Ограничиваем домен в продакшн, если указан
+    // Restrict domain in production, if specified
     if (process.env.COOKIE_DOMAIN) {
       cookieOptions.domain = process.env.COOKIE_DOMAIN;
     }
@@ -23,15 +23,15 @@ const setTokenCookie = (res, token, expiry = '7d') => {
   return res;
 };
 
-// Middleware для удаления JWT cookie (при выходе)
+// Middleware for deleting JWT cookie (when logging out)
 const clearTokenCookie = (res) => {
-  // Очищаем куки
+  // Clear cookies
   const cookieOptions = { 
     httpOnly: true,
     path: '/',
   };
   
-  // В production учитываем дополнительные параметры
+  // In production, consider additional parameters
   if (process.env.NODE_ENV === 'production') {
     cookieOptions.secure = true;
     cookieOptions.sameSite = 'none';
@@ -45,7 +45,7 @@ const clearTokenCookie = (res) => {
   return res;
 };
 
-// Middleware для чтения JWT из cookie
+// Middleware for reading JWT from cookie
 const getTokenFromCookie = (req) => {
   return req.cookies.token;
 };
